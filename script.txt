@@ -1,0 +1,47 @@
+python3 monodevsnet_trainer.py --png --use_dc --use_le --use_ms --version <an_extension_to_model_name> \
+    --models_fcn_name encoder <HRNet/ResNet/DenseNet> --num_layers <model_extension_num> \
+    --real_dataset kitti --syn_dataset <vk_1.0/vk_2.0> --real_data_path <path_to_real_dataset_folder> --syn_data_path <path_to_synthetic_dataset_folder>
+
+
+python monodevsnet_trainer.py \
+        --use_dc --use_le --use_ms \
+        --models_fcn_name encoder HRNet \
+        --num_layers 18 \
+        --cuda_idx 0 \
+        --num_workers 6 \
+        --num_epochs 20 \
+        --batch_size 6 \
+        --height 192 \
+        --width 640 \
+        --max_depth 80 \
+        --version movodevsnet_vk2_640x192 \
+        --real_dataset kitti \
+        --syn_dataset vk_2.0 \
+        --real_data_path /media/aiteam/DataAI/depth_datasets/kitti_precompute_depth_MonoDELSNet \
+        --syn_data_path /media/aiteam/DataAI/depth_datasets
+
+python3 evaluation.py \
+        --dataset kitti \
+        --batch_size 1 \
+        --models_fcn_name encoder HRNet \
+        --num_layers 48 \
+        --real_data_path /media/aiteam/DataAI/depth_datasets/kitti_precompute_depth_MonoDELSNet \
+        --load_weights_folder /media/aiteam/DataAI/MonoDEVSNet-kitti/MonoDEVSNet/models/hrnet_w48_vk2
+
+python nightscenes_trainer.py \
+        --use_dc --png \
+        --models_fcn_name encoder HRNet \
+        --num_layers 18 \
+        --cuda_idx 0 \
+        --num_workers 6 \
+        --num_epochs 20 \
+        --batch_size 6 \
+        --height 192 \
+        --width 640 \
+        --max_depth 80 \
+        --version nigth_scene_depth_640x192 \
+        --real_dataset kitti \
+        --syn_dataset kitti \
+        --real_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --syn_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --eval_mono
