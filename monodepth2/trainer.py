@@ -56,104 +56,104 @@ class Trainer:
         if self.opt.use_stereo:
             self.opt.frame_ids.append("s")
 
-        self.models["encoder"] = networks.ResnetEncoder(
-            self.opt.num_layers, self.opt.weights_init == "pretrained")
-        self.models["encoder"].to(self.device)
-        self.parameters_to_train += list(self.models["encoder"].parameters())
+        # self.models["encoder"] = networks.ResnetEncoder(
+        #     self.opt.num_layers, self.opt.weights_init == "pretrained")
+        # self.models["encoder"].to(self.device)
+        # self.parameters_to_train += list(self.models["encoder"].parameters())
 
-        self.models["depth"] = networks.DepthDecoder(
-            self.models["encoder"].num_ch_enc, self.opt.scales)
-        self.models["depth"].to(self.device)
-        self.parameters_to_train += list(self.models["depth"].parameters())
+        # self.models["depth"] = networks.DepthDecoder(
+        #     self.models["encoder"].num_ch_enc, self.opt.scales)
+        # self.models["depth"].to(self.device)
+        # self.parameters_to_train += list(self.models["depth"].parameters())
 
-        if self.use_pose_net:
-            if self.opt.pose_model_type == "separate_resnet":
-                self.models["pose_encoder"] = networks.ResnetEncoder(
-                    self.opt.num_layers,
-                    self.opt.weights_init == "pretrained",
-                    num_input_images=self.num_pose_frames)
+        # if self.use_pose_net:
+        #     if self.opt.pose_model_type == "separate_resnet":
+        #         self.models["pose_encoder"] = networks.ResnetEncoder(
+        #             self.opt.num_layers,
+        #             self.opt.weights_init == "pretrained",
+        #             num_input_images=self.num_pose_frames)
 
-                self.models["pose_encoder"].to(self.device)
-                self.parameters_to_train += list(self.models["pose_encoder"].parameters())
+        #         self.models["pose_encoder"].to(self.device)
+        #         self.parameters_to_train += list(self.models["pose_encoder"].parameters())
 
-                self.models["pose"] = networks.PoseDecoder(
-                    self.models["pose_encoder"].num_ch_enc,
-                    num_input_features=1,
-                    num_frames_to_predict_for=2)
+        #         self.models["pose"] = networks.PoseDecoder(
+        #             self.models["pose_encoder"].num_ch_enc,
+        #             num_input_features=1,
+        #             num_frames_to_predict_for=2)
 
-            elif self.opt.pose_model_type == "shared":
-                self.models["pose"] = networks.PoseDecoder(
-                    self.models["encoder"].num_ch_enc, self.num_pose_frames)
+        #     elif self.opt.pose_model_type == "shared":
+        #         self.models["pose"] = networks.PoseDecoder(
+        #             self.models["encoder"].num_ch_enc, self.num_pose_frames)
 
-            elif self.opt.pose_model_type == "posecnn":
-                self.models["pose"] = networks.PoseCNN(
-                    self.num_input_frames if self.opt.pose_model_input == "all" else 2)
+        #     elif self.opt.pose_model_type == "posecnn":
+        #         self.models["pose"] = networks.PoseCNN(
+        #             self.num_input_frames if self.opt.pose_model_input == "all" else 2)
 
-            self.models["pose"].to(self.device)
-            self.parameters_to_train += list(self.models["pose"].parameters())
+        #     self.models["pose"].to(self.device)
+        #     self.parameters_to_train += list(self.models["pose"].parameters())
 
-        if self.opt.predictive_mask:
-            assert self.opt.disable_automasking, \
-                "When using predictive_mask, please disable automasking with --disable_automasking"
+        # if self.opt.predictive_mask:
+        #     assert self.opt.disable_automasking, \
+        #         "When using predictive_mask, please disable automasking with --disable_automasking"
 
-            # Our implementation of the predictive masking baseline has the the same architecture
-            # as our depth decoder. We predict a separate mask for each source frame.
-            self.models["predictive_mask"] = networks.DepthDecoder(
-                self.models["encoder"].num_ch_enc, self.opt.scales,
-                num_output_channels=(len(self.opt.frame_ids) - 1))
-            self.models["predictive_mask"].to(self.device)
-            self.parameters_to_train += list(self.models["predictive_mask"].parameters())
+        #     # Our implementation of the predictive masking baseline has the the same architecture
+        #     # as our depth decoder. We predict a separate mask for each source frame.
+        #     self.models["predictive_mask"] = networks.DepthDecoder(
+        #         self.models["encoder"].num_ch_enc, self.opt.scales,
+        #         num_output_channels=(len(self.opt.frame_ids) - 1))
+        #     self.models["predictive_mask"].to(self.device)
+        #     self.parameters_to_train += list(self.models["predictive_mask"].parameters())
 
-        self.model_optimizer = optim.Adam(self.parameters_to_train, self.opt.learning_rate)
-        self.model_lr_scheduler = optim.lr_scheduler.StepLR(
-            self.model_optimizer, self.opt.scheduler_step_size, 0.1)
+        # self.model_optimizer = optim.Adam(self.parameters_to_train, self.opt.learning_rate)
+        # self.model_lr_scheduler = optim.lr_scheduler.StepLR(
+        #     self.model_optimizer, self.opt.scheduler_step_size, 0.1)
 
-        if self.opt.load_weights_folder is not None:
-            self.load_model()
+        # if self.opt.load_weights_folder is not None:
+        #     self.load_model()
 
-        print("Training model named:\n  ", self.opt.model_name)
-        print("Models and tensorboard events files are saved to:\n  ", self.opt.log_dir)
-        print("Training is using:\n  ", self.device)
+        # print("Training model named:\n  ", self.opt.model_name)
+        # print("Models and tensorboard events files are saved to:\n  ", self.opt.log_dir)
+        # print("Training is using:\n  ", self.device)
 
-        # data
-        datasets_dict = {"kitti": datasets.KITTIRAWDataset,
-                         "kitti_odom": datasets.KITTIOdomDataset}
-        self.dataset = datasets_dict[self.opt.dataset]
+        # # data
+        # datasets_dict = {"kitti": datasets.KITTIRAWDataset,
+        #                  "kitti_odom": datasets.KITTIOdomDataset}
+        # self.dataset = datasets_dict[self.opt.dataset]
 
-        fpath = os.path.join(os.path.dirname(__file__), "splits", self.opt.split, "{}_files.txt")
+        # fpath = os.path.join(os.path.dirname(__file__), "splits", self.opt.split, "{}_files.txt")
 
-        train_filenames = readlines(fpath.format("train"))
-        val_night_filenames = readlines(fpath.format("val_night"))
-        val_day_filenames = readlines(fpath.format("val_day"))
-        img_ext = '.png' if self.opt.png else '.jpg'
+        # train_filenames = readlines(fpath.format("train"))
+        # val_night_filenames = readlines(fpath.format("val_night"))
+        # val_day_filenames = readlines(fpath.format("val_day"))
+        # img_ext = '.png' if self.opt.png else '.jpg'
 
-        num_train_samples = len(train_filenames)
-        self.num_total_steps = num_train_samples // self.opt.batch_size * self.opt.num_epochs
+        # num_train_samples = len(train_filenames)
+        # self.num_total_steps = num_train_samples // self.opt.batch_size * self.opt.num_epochs
 
-        train_dataset = self.dataset(
-            self.opt.data_path, train_filenames, self.opt.height, self.opt.width,
-            self.opt.frame_ids, 4, is_train=True, img_ext=img_ext)
-        self.train_loader = DataLoader(
-            train_dataset, self.opt.batch_size, True,
-            num_workers=self.opt.num_workers, pin_memory=True, drop_last=True)
+        # train_dataset = self.dataset(
+        #     self.opt.data_path, train_filenames, self.opt.height, self.opt.width,
+        #     self.opt.frame_ids, 4, is_train=True, img_ext=img_ext)
+        # self.train_loader = DataLoader(
+        #     train_dataset, self.opt.batch_size, True,
+        #     num_workers=self.opt.num_workers, pin_memory=True, drop_last=True)
 
-        val_night_dataset = self.dataset(
-            self.opt.data_path, val_night_filenames, self.opt.height, self.opt.width,
-            [0], 4, is_train=False, img_ext=img_ext)
-        self.val_night_loader = DataLoader(
-            val_night_dataset, self.opt.batch_size, False,
-            num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
+        # val_night_dataset = self.dataset(
+        #     self.opt.data_path, val_night_filenames, self.opt.height, self.opt.width,
+        #     [0], 4, is_train=False, img_ext=img_ext)
+        # self.val_night_loader = DataLoader(
+        #     val_night_dataset, self.opt.batch_size, False,
+        #     num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
 
-        val_day_dataset= self.dataset(
-            self.opt.data_path, val_day_filenames, self.opt.height, self.opt.width,
-            [0], 4, is_train=False, img_ext=img_ext)
-        self.val_day_loader = DataLoader(
-            val_day_dataset, self.opt.batch_size, False,
-            num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
+        # val_day_dataset= self.dataset(
+        #     self.opt.data_path, val_day_filenames, self.opt.height, self.opt.width,
+        #     [0], 4, is_train=False, img_ext=img_ext)
+        # self.val_day_loader = DataLoader(
+        #     val_day_dataset, self.opt.batch_size, False,
+        #     num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
 
-        self.writers = {}
-        for mode in ["train", "val"]:
-            self.writers[mode] = SummaryWriter(os.path.join(self.log_path, mode))
+        # self.writers = {}
+        # for mode in ["train", "val"]:
+        #     self.writers[mode] = SummaryWriter(os.path.join(self.log_path, mode))
 
         if not self.opt.no_ssim:
             self.ssim = SSIM()
@@ -171,14 +171,14 @@ class Trainer:
             self.project_3d[scale] = Project3D(self.opt.batch_size, h, w)
             self.project_3d[scale].to(self.device)
 
-        self.depth_metric_names = [
-            "de/abs_rel", "de/sq_rel", "de/rms", "de/log_rms", "da/a1", "da/a2", "da/a3"]
+        # self.depth_metric_names = [
+        #     "de/abs_rel", "de/sq_rel", "de/rms", "de/log_rms", "da/a1", "da/a2", "da/a3"]
 
-        print("Using split:\n  ", self.opt.split)
-        print("There are {:d} training items and {:d} validation items\n".format(
-            len(train_dataset), len(val_night_dataset)))
+        # print("Using split:\n  ", self.opt.split)
+        # print("There are {:d} training items and {:d} validation items\n".format(
+        #     len(train_dataset), len(val_night_dataset)))
 
-        self.save_opts()
+        # self.save_opts()
 
     def set_train(self):
         """Convert all models to training mode

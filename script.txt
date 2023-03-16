@@ -28,20 +28,44 @@ python3 evaluation.py \
         --real_data_path /media/aiteam/DataAI/depth_datasets/kitti_precompute_depth_MonoDELSNet \
         --load_weights_folder /media/aiteam/DataAI/MonoDEVSNet-kitti/MonoDEVSNet/models/hrnet_w48_vk2
 
-python nightscenes_trainer.py \
-        --use_dc --png \
+python nightscenes_trainer.py \                                           
+        --use_dc --use_le --png \
+        --models_fcn_name encoder HRNet \
+        --num_layers 18 \
+        --cuda_idx 0 \
+        --num_workers 6 \
+        --num_epochs 20 \
+        --batch_size 4 \
+        --height 256 \
+        --width 512 \
+        --version all_images \
+        --real_dataset kitti \
+        --syn_dataset kitti \
+        --real_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --syn_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --eval_mono
+
+
+python onlynightscenes_trainer.py \
+        --png \
         --models_fcn_name encoder HRNet \
         --num_layers 18 \
         --cuda_idx 0 \
         --num_workers 6 \
         --num_epochs 20 \
         --batch_size 6 \
-        --height 192 \
-        --width 640 \
-        --max_depth 80 \
-        --version nigth_scene_depth_640x192 \
+        --height 256 \
+        --width 512 \
+        --version only_night_all \
         --real_dataset kitti \
         --syn_dataset kitti \
         --real_data_path /media/aiteam/DataAI/depth_datasets/oxford \
         --syn_data_path /media/aiteam/DataAI/depth_datasets/oxford \
         --eval_mono
+
+python -m monodepth2.evaluate_depth --load_weights_folder /home/aiteam/tmp/HRNet18_dcF_leF_512x256_only_night_adss_slipt/models/weights_15 \
+                            --eval_split oxford_night_411 \
+                            --eval_mono \
+                            --models_fcn_name encoder HRNet \
+                            --num_layers 18 \
+                            --png

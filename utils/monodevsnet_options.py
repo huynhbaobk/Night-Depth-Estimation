@@ -96,7 +96,7 @@ class MonoDEVSOptions(MonodepthOptions):
         self.parser.add_argument('--config',
                                  help='configuration of the hrnet encoder',
                                  type=str,
-                                 default='hrnet_w48_vk2')
+                                 default='hrnet_w18_vk2')
         self.parser.add_argument("--models_fcn_name",
                                  nargs="+",
                                  type=str,
@@ -113,7 +113,7 @@ class MonoDEVSOptions(MonodepthOptions):
                                  type=str,
                                  help="dataset to train on",
                                  default="kitti",
-                                 choices=["kitti", "kitti_odom", "kitti_depth", "kitti_test", "oxford"])
+                                 choices=["kitti", "kitti_odom", "kitti_depth", "kitti_test", "oxford", "any"])
         self.parser.add_argument("--syn_dataset",
                                  type=str,
                                  help="dataset to train on",
@@ -122,8 +122,8 @@ class MonoDEVSOptions(MonodepthOptions):
         self.parser.add_argument("--real_split",
                                  type=str,
                                  help="which training split to use",
-                                 choices=["eigen_zhou", "eigen_full", "odom", "benchmark", "oxford_night"],
-                                 default="oxford_night")
+                                 choices=["eigen_zhou", "eigen_full", "odom", "benchmark", "oxford_night", "oxford_day"],
+                                 default="oxford_day")
         self.parser.add_argument("--syn_split",
                                  type=str,
                                  help="which training split to use",

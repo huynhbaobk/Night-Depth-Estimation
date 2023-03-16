@@ -40,7 +40,7 @@ class MonodepthOptions:
                                  type=int,
                                  help="number of resnet layers",
                                  default=18,
-                                 choices=[18, 34, 50, 101, 152])
+                                 choices=[18, 32,34, 50, 101, 152])
         self.parser.add_argument("--dataset",
                                  type=str,
                                  help="dataset to train on",
@@ -160,7 +160,7 @@ class MonodepthOptions:
         self.parser.add_argument("--save_frequency",
                                  type=int,
                                  help="number of epochs between each save",
-                                 default=1)
+                                 default=5)
 
         # EVALUATION options
         self.parser.add_argument("--eval_stereo",

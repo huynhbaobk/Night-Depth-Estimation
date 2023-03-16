@@ -103,23 +103,18 @@ class MonoDEVSNetTrainer(Trainer):
             self.models["pose_real"] = self.network_selection('pose')
             self.parameters_to_train += list(self.models["pose_real"].parameters())
 
-            self.models["pose_encoder_syn"] = self.network_selection('pose_encoder')
-            self.parameters_to_train += list(self.models["pose_encoder_syn"].parameters())
-            self.models["pose_syn"] = self.network_selection('pose')
-            self.parameters_to_train += list(self.models["pose_syn"].parameters())
+            # self.models["pose_encoder_syn"] = self.network_selection('pose_encoder')
+            # self.parameters_to_train += list(self.models["pose_encoder_syn"].parameters())
+            # self.models["pose_syn"] = self.network_selection('pose')
+            # self.parameters_to_train += list(self.models["pose_syn"].parameters())
 
         # Domain classifier
-        self.lambda_ = 1
         if self.opt.use_dc:
             self.models["domain_classifier"] = self.network_selection('domain_classifier')
             self.parameters_to_train += list(self.models["domain_classifier"].parameters())
 
         # Set optimization parameters
         self.model_optimizer = optim.Adam(self.parameters_to_train, self.opt.learning_rate)
-        # self.model_lr_scheduler = optim.lr_scheduler.StepLR(
-        #     self.model_optimizer, self.opt.scheduler_step_size, 0.1)
-
-        # self.model_lr_scheduler =  optim.lr_scheduler.CosineAnnealingLR(self.model_optimizer, T_max=4, eta_min=1e-5)
 
         if self.opt.load_weights_folder is not None:
             self.load_model()
@@ -149,7 +144,7 @@ class MonoDEVSNetTrainer(Trainer):
         ### Training dataset ###
         ### NIGHT
         real_f_path = os.path.join(os.path.dirname(__file__), "monodepth2/splits", self.opt.real_split, "{}_files.txt")
-        real_filenames = readlines(real_f_path.format("train_all"))
+        real_filenames = readlines(real_f_path.format("train"))
         real_train_dataset = self.real_dataset(data_path=self.opt.real_data_path, filenames=real_filenames,
                                                height=self.opt.height, width=self.opt.width,
                                                frame_idxs=self.opt.frame_ids, num_scales=4, is_train=True,
@@ -158,7 +153,7 @@ class MonoDEVSNetTrainer(Trainer):
         
         ### DAY
         syn_f_path =  os.path.join(os.path.dirname(__file__), "monodepth2/splits", self.opt.syn_split, "{}_files.txt")
-        syn_filenames = readlines(syn_f_path.format("train_all"))
+        syn_filenames = readlines(syn_f_path.format("train"))
         syn_train_dataset = self.syn_dataset(data_path=self.opt.syn_data_path, filenames=syn_filenames,
                                                height=self.opt.height, width=self.opt.width,
                                                frame_idxs=self.opt.frame_ids, num_scales=4, is_train=True,
@@ -208,7 +203,7 @@ class MonoDEVSNetTrainer(Trainer):
         ### val iteration approach ###
         self.real_val_iter, self.syn_val_iter = iter(self.real_val_loader), iter(self.syn_val_loader)
 
-        self.num_total_files = min(real_train_dataset.__len__(), syn_train_dataset.__len__())
+        self.num_total_files = real_train_dataset.__len__()
         self.num_total_steps = self.num_total_files // self.opt.batch_size * self.opt.num_epochs
         self.num_total_batch = self.num_total_files // self.opt.batch_size
 
@@ -277,8 +272,6 @@ class MonoDEVSNetTrainer(Trainer):
     def run_epoch(self):
         """Run a single epoch of training and validation
         """
-        # self.model_lr_scheduler.step()
-
         print(f"**********Training epoch {self.epoch}**********")
         self.set_train()
 
@@ -286,24 +279,24 @@ class MonoDEVSNetTrainer(Trainer):
 
             before_op_time = time.time()
             # Choosing the dataloader for training model
-            if self.choosing_dataset_to_train_with(batch_idx):
-                # Synthetic dataset
-                self.syn_or_real = 'syn'
-                try:
-                    inputs = self.syn_train_iter.__next__()
-                except StopIteration:
-                    print('Stopped as the iteration has reached to the END, and reloading the synthetic dataloader')
-                    self.syn_train_iter = iter(self.syn_train_loader)
-                    inputs = self.syn_train_iter.__next__()
-            else:
-                # Real dataset
-                self.syn_or_real = 'real'
-                try:
-                    inputs = self.real_train_iter.__next__()
-                except StopIteration:
-                    print('Stopped as the iteration has reached to the END, and reloading the real dataloader')
-                    self.real_train_iter = iter(self.real_train_loader)
-                    inputs = self.real_train_iter.__next__()
+            # if self.choosing_dataset_to_train_with(batch_idx):
+            #     # Synthetic dataset
+            #     self.syn_or_real = 'syn'
+            #     try:
+            #         inputs = self.syn_train_iter.__next__()
+            #     except StopIteration:
+            #         print('Stopped as the iteration has reached to the END, and reloading the synthetic dataloader')
+            #         self.syn_train_iter = iter(self.syn_train_loader)
+            #         inputs = self.syn_train_iter.__next__()
+            # else:
+            # Real dataset
+            self.syn_or_real = 'real'
+            try:
+                inputs = self.real_train_iter.__next__()
+            except StopIteration:
+                print('Stopped as the iteration has reached to the END, and reloading the real dataloader')
+                self.real_train_iter = iter(self.real_train_loader)
+                inputs = self.real_train_iter.__next__()
             
             # Move all available tensors to GPU memory
             for key, ipt in inputs.items():
@@ -335,7 +328,7 @@ class MonoDEVSNetTrainer(Trainer):
                 self.model_optimizer.zero_grad()
                 self.zero_grad()
 
-            if (batch_idx-200) % 400 == 0 or (batch_idx-401) % 400 == 0:
+            if (batch_idx-100) % 200 == 0:
                 duration = time.time() - before_op_time
                 self.log_time(batch_idx, duration, losses["loss"].cpu().data)
 
@@ -343,13 +336,12 @@ class MonoDEVSNetTrainer(Trainer):
                 self.compute_depth_losses(inputs, outputs, losses)
 
             # if self.early_phase or self.mid_phase or self.late_phase:
-            if (batch_idx-100) % 200 == 0 or (batch_idx-201) % 200 == 0:
+            if (batch_idx-100) % 200 == 0:
                 self.log("train", inputs, outputs, losses)
                 # self.val("real")
                 # self.val("syn")
 
             if (batch_idx + 1) % 2 == 0:
-                # self.current_lr = self.model_lr_scheduler.get_last_lr()[0]
                 self.current_lr = self.update_learning_rate(self.model_optimizer, self.opt.learning_rate)
 
         mean_night_err = self.evaluate(split='night')
@@ -364,9 +356,14 @@ class MonoDEVSNetTrainer(Trainer):
         """Pass a mini-batch through the network and generate images and losses
         """
         # Otherwise, we only feed the image with frame_id 0 through the depth encoder
+        # Resnet
+        # features = self.models["encoder"](inputs["color_aug", 0, 0])
+
+        # HRNet
         features, raw_hrnet_features = self.models["encoder"](inputs["color_aug", 0, 0])
         outputs = self.models["depth_decoder"](features)
 
+        self.lambda_ = 1
         if self.opt.use_dc:
             # self.lambda_ = self.get_lambda(self.epoch, self.opt.num_epochs)
             outputs['domain_classifier'] = self.models['domain_classifier'](raw_hrnet_features, self.lambda_)
@@ -461,6 +458,10 @@ class MonoDEVSNetTrainer(Trainer):
                     # Post-processed results require each image to have two forward passes
                     input_color = torch.cat((input_color, torch.flip(input_color, [3])), 0)
 
+                # Resnet
+                # features = encoder(input_color)
+                
+                # HRNet
                 features, raw_hrnet_features = encoder(input_color)
                 output = depth_decoder(features)
 
@@ -553,17 +554,12 @@ class MonoDEVSNetTrainer(Trainer):
         # Domain classifier with Gradient Reversal Layer
         if self.opt.use_dc:
             if self.syn_or_real == 'syn':
-                losses['domain_classifier'] = self.lambda_ * self.LossDomainClassifier(outputs['domain_classifier'],
+                losses['domain_classifier'] = 10.0 * self.LossDomainClassifier(outputs['domain_classifier'],
                                                                                self.False_.long())
-                ### scale loss
-                # losses['domain_classifier'] = 10*self.lambda_ * self.LossDomainClassifier(outputs['domain_classifier'],
-                #                                                                self.False_.long())                                                                          
             else:
-                losses['domain_classifier'] = self.lambda_ * self.LossDomainClassifier(outputs['domain_classifier'],
+                losses['domain_classifier'] = 10.0 * self.LossDomainClassifier(outputs['domain_classifier'],
                                                                                self.True_.long())
-                ### scale loss
-                # losses['domain_classifier'] = 10*self.lambda_ * self.LossDomainClassifier(outputs['domain_classifier'],
-                #                                                                self.True_.long())
+
             losses['loss/domain_classifier'] = losses['domain_classifier'].detach().cpu().data
 
         if 'self' in self.opt.real_loss_fcn and "real" in self.syn_or_real:

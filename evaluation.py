@@ -185,7 +185,7 @@ class Evaluation(object):
         # Images path list
         img_ext = '.png' if self.opt.png else '.jpg'
         self.im_path_list = []
-        if self.opt.dataset == 'kitti':
+        if self.opt.real_dataset == 'kitti':
             print("KITTI choose")
             real_eigen = readlines(os.path.join(os.path.dirname(__file__), "splits", "eigen", "test_files.txt"))
             print(real_eigen)
@@ -195,8 +195,8 @@ class Evaluation(object):
                                       img_ext=img_ext)
             self.dataloader = DataLoader(dataset, self.opt.batch_size, shuffle=False, num_workers=opt.num_workers,
                                          pin_memory=True, drop_last=False)
-            print('Total number of images in {} dataset: {}'.format(self.opt.dataset, dataset.__len__()))
-        elif self.opt.dataset == 'kitti_depth':
+            print('Total number of images in {} dataset: {}'.format(self.opt.real_dataset, dataset.__len__()))
+        elif self.opt.real_dataset == 'kitti_depth':
             real_eigen = readlines(os.path.join(os.path.dirname(__file__), "splits", "eigen", "test_files.txt"))
             dataset = KITTIDepthDataset(data_path=self.opt.real_data_path, filenames=real_eigen,
                                         height=self.opt.height, width=self.opt.width,
@@ -204,19 +204,19 @@ class Evaluation(object):
                                         img_ext=img_ext)
             self.dataloader = DataLoader(dataset, self.opt.batch_size, shuffle=False, num_workers=opt.num_workers,
                                          pin_memory=True, drop_last=False)
-            print('Total number of images in {} dataset: {}'.format(self.opt.dataset, dataset.__len__()))
-        elif self.opt.dataset == 'any':
+            print('Total number of images in {} dataset: {}'.format(self.opt.real_dataset, dataset.__len__()))
+        elif self.opt.real_dataset == 'any':
             for base_path, base_folder, file_paths in os.walk(self.opt.image_folder_path):
                 for file_path in sorted(file_paths):
                     if file_path.endswith('.png') or file_path.endswith('.jpg'):
                         self.im_path_list.append(os.path.join(base_path, file_path))
-            print('Total number of images in {} dataset: {}'.format(self.opt.dataset, len(self.im_path_list)))
+            print('Total number of images in {} dataset: {}'.format(self.opt.real_dataset, len(self.im_path_list)))
         else:
             raise RuntimeError('Choose dataset to test MonoDEVSNet model')
 
         self.rgbs, self.pred_depths, self.gt_depths = [], [], []
         self.resize = transforms.Resize((self.opt.height, self.opt.width), interpolation=Image.ANTIALIAS)
-        if self.opt.dataset == 'kitti':
+        if self.opt.real_dataset == 'kitti':
             # Eigen split - LIDAR data
             gt_path = os.path.join(os.path.dirname(__file__), "splits", "eigen", "gt_depths.npz")
             self.gt_depths = np.load(gt_path, fix_imports=True, encoding='latin1', allow_pickle=True)["data"]
@@ -246,12 +246,12 @@ class Evaluation(object):
                 # Convert disparity into depth maps
                 pred_disp = self.invdepth_to_depth(output[("disp", 0)])
                 pred_disp = pred_disp[0, 0].cpu().numpy()
-                pred_depth_raw = 3. / pred_disp.copy()
+                # pred_depth_raw = 3. / pred_disp.copy()
 
                 # save resized rgb,and raw pred depth
                 self.rgbs.append(input_color_np)
-                self.pred_depths.append(pred_depth_raw)
-                pred_depth_t = torch.tensor(pred_depth_raw).unsqueeze(0).unsqueeze(0)
+                self.pred_depths.append(pred_disp)
+                pred_depth_t = torch.tensor(pred_disp).unsqueeze(0).unsqueeze(0)
                 pred_depth_t[pred_depth_t < self.opt.min_depth] = self.opt.min_depth
                 pred_depth_t[pred_depth_t > self.opt.max_depth] = self.opt.max_depth
 
@@ -278,7 +278,7 @@ class Evaluation(object):
         return None, None
 
     def eval(self):
-        if self.opt.dataset == 'any':
+        if self.opt.real_dataset == 'any':
             return self.eval_any()
         else:
             return self.eval_local()
@@ -310,8 +310,8 @@ class Evaluation(object):
                 pred_disp = pred_disp[0, 0].cpu().numpy()
                 pred_depth_raw = 3. / pred_disp.copy()
 
-                if 'kitti' in self.opt.dataset:
-                    if self.opt.dataset == 'kitti_depth':
+                if 'kitti' in self.opt.real_dataset:
+                    if self.opt.real_dataset == 'kitti_depth':
                         self.gt_depths.append(data['depth_gt'][0, 0].cpu().numpy())
 
                 gt_depth = self.gt_depths[iter_l]
@@ -351,13 +351,13 @@ class Evaluation(object):
                 self.rgbs.append(input_color.squeeze().cpu().permute(1, 2, 0).numpy().copy())
                 self.pred_depths.append(pred_depth_raw)
 
-        if 'kitti' in self.opt.dataset:
+        if 'kitti' in self.opt.real_dataset:
             errors_absolute = np.array(errors_absolute).mean(0)
 
             print('\n  \n  for {} meters - MonoDEVSNet Absolute depth estimation results '
                   'fps: {}, total time taken: {:4.4} (in mins) invalid images: {} kb_crop: {} dataset: {}'.
                   format(self.opt.max_depth, 1 / np.mean(time_for_each_frame), (time.time() - total_time) / 60,
-                         total_invalid_images, str(self.opt.do_kb_crop), self.opt.dataset))
+                         total_invalid_images, str(self.opt.do_kb_crop), self.opt.real_dataset))
             print("  " + ("{:>8} | " * 7).format("abs_rel", "sq_rel", "rmse", "rmse_log", "a1", "a2", "a3"))
             print(errors_absolute.tolist())
             print(("&{: 8.4f}  " * 7).format(*errors_absolute.tolist()) + "\\\\")
@@ -371,7 +371,7 @@ class Evaluation(object):
         return errors_absolute, errors_relative
 
     def load_rgb_image(self, file_path):
-        if self.opt.dataset == 'kitti' or self.opt.dataset == 'any':
+        if self.opt.real_dataset == 'kitti' or self.opt.real_dataset == 'any':
             im_pil = Image.open(file_path).convert('RGB')
             return torch.tensor(np.array(self.resize(im_pil), dtype=np.float32) / 255).permute(2, 0, 1).unsqueeze(0).to(
                 self.device), np.array(im_pil)

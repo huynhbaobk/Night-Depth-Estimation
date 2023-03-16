@@ -1,6 +1,6 @@
 HRNET_MODEL:
   ALIGN_CORNERS: true
-  PRETRAINED: "/media/aiteam/DataAI/MonoDEVSNet-kitti/MonoDEVSNet/models/hrnetv2_w18_imagenet_pretrained.pth"
+  PRETRAINED: "/media/aiteam/DataAI/Night-Depth-GRL/models/hrnetv2_w18_imagenet_pretrained.pth"
   CONFIGURATION:
     STEM_STRIDE: 4
     STEM_INPUT_CHANNEL: 3
