@@ -136,7 +136,6 @@ class DensenetPyramidEncoder(nn.Module):
         feats_pyramid_2 = densenet_feats[2]
         feats_pyramid_3 = densenet_feats[3]
         feats_pyramid_4 = densenet_feats[4]
-        raw_densenet_feats = densenet_feats[4]
-
+        raw_densenet_feats = de_conv_unit
         return [feats_pyramid_0, feats_pyramid_1, feats_pyramid_2, feats_pyramid_3,
                 feats_pyramid_4], raw_densenet_feats

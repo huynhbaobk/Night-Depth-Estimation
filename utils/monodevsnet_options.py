@@ -90,6 +90,9 @@ class MonoDEVSOptions(MonodepthOptions):
         self.parser.add_argument("--use_segm",
                                  help="to use segmentation block/loss or not",
                                  action="store_true")
+        self.parser.add_argument("--use_position_map",
+                                 help="to use position map with depth classifier",
+                                 action="store_true")
 
         #   Model options
         
@@ -123,7 +126,7 @@ class MonoDEVSOptions(MonodepthOptions):
                                  type=str,
                                  help="which training split to use",
                                  choices=["eigen_zhou", "eigen_full", "odom", "benchmark", "oxford_night", "oxford_day"],
-                                 default="oxford_day")
+                                 default="oxford_night")
         self.parser.add_argument("--syn_split",
                                  type=str,
                                  help="which training split to use",
@@ -161,6 +164,10 @@ class MonoDEVSOptions(MonodepthOptions):
                                  default=3.0)
         self.parser.add_argument("--self_scaling_factor", help=" weighting parameter on self-supervised", type=float,
                                  default=100.)
+        self.parser.add_argument("--G_weight", help=" G_weight loss", type=float,
+                                 default=2.5e-4)
+        self.parser.add_argument("--D_weight", help=" D_weight loss", type=float,
+                                 default=2.5e-4)
 
         # SYSTEM options
         self.parser.add_argument("--cuda_idx",

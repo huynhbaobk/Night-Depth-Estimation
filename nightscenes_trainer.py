@@ -63,6 +63,8 @@ from monodepth2.trainer import Trainer
 from monodepth2.utils import normalize_image, readlines, sec_to_hm_str
 from utils import get_n_params
 from utils.monodevsnet_options import MonoDEVSOptions
+from utils import freeze_model, unfreeze_model, ImagePool
+
 
 class MonoDEVSNetTrainer(Trainer):
     def __init__(self, *args, **kwargs):
@@ -116,10 +118,21 @@ class MonoDEVSNetTrainer(Trainer):
 
         # Set optimization parameters
         self.model_optimizer = optim.Adam(self.parameters_to_train, self.opt.learning_rate)
-        # self.model_lr_scheduler = optim.lr_scheduler.StepLR(
-        #     self.model_optimizer, self.opt.scheduler_step_size, 0.1)
+        self.model_lr_scheduler = optim.lr_scheduler.StepLR(
+            self.model_optimizer, self.opt.scheduler_step_size, 0.1)
 
         # self.model_lr_scheduler =  optim.lr_scheduler.CosineAnnealingLR(self.model_optimizer, T_max=4, eta_min=1e-5)
+
+        self.models["depth_classifier"] = self.network_selection('depth_classifier')
+        self.depth_classifier_parameters = self.models["depth_classifier"].parameters()
+        self.depth_classifier_optim = optim.Adam(self.depth_classifier_parameters, lr=self.opt.learning_rate)
+        # self.image_pool = ImagePool(50)
+
+        # register image coordinates
+        if self.opt.use_position_map:
+            h, w = self.opt.height, self.opt.width
+            self.height_map = torch.arange(h).view(1, 1, h, 1).repeat(1, 1, 1, w) / (h - 1)
+            self.width_map = torch.arange(w).view(1, 1, 1, w).repeat(1, 1, h, 1) / (w - 1)
 
         if self.opt.load_weights_folder is not None:
             self.load_model()
@@ -194,12 +207,12 @@ class MonoDEVSNetTrainer(Trainer):
         # NIGHT 
         self.real_val_loader = DataLoader(
             real_val_dataset, self.opt.batch_size, False,
-            num_workers=self.opt.num_workers, pin_memory=True, drop_last=True)
+            num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
         
         # DAY
         self.syn_val_loader = DataLoader(
             syn_val_dataset, self.opt.batch_size, False,
-            num_workers=self.opt.num_workers, pin_memory=True, drop_last=True)
+            num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
 
 
         ### Training iteration approach ###
@@ -233,6 +246,7 @@ class MonoDEVSNetTrainer(Trainer):
         self.L2Loss = nn.MSELoss().to(self.device)
         self.CrossEntropy = nn.CrossEntropyLoss().to(self.device)
         self.LossDomainClassifier = nn.NLLLoss().to(self.device)
+        self.gan_loss = networks.GANLoss('lsgan').to(self.device)
 
         self.depth_metric_names = [
             "de/abs_rel", "de/sq_rel", "de/rms", "de/log_rms", "da/a1", "da/a2", "da/a3"]
@@ -260,6 +274,9 @@ class MonoDEVSNetTrainer(Trainer):
                 self.zero_grad()
                 self.run_epoch()
 
+                if self.epoch >= 15:
+                    self.opt.save_frequency = 1
+
                 if self.epoch % self.opt.save_frequency == 0:
                     self.save_model()
                     
@@ -277,7 +294,7 @@ class MonoDEVSNetTrainer(Trainer):
     def run_epoch(self):
         """Run a single epoch of training and validation
         """
-        # self.model_lr_scheduler.step()
+        self.model_lr_scheduler.step()
 
         print(f"**********Training epoch {self.epoch}**********")
         self.set_train()
@@ -343,14 +360,14 @@ class MonoDEVSNetTrainer(Trainer):
                 self.compute_depth_losses(inputs, outputs, losses)
 
             # if self.early_phase or self.mid_phase or self.late_phase:
-            if (batch_idx-100) % 200 == 0 or (batch_idx-201) % 200 == 0:
+            if (batch_idx-200) % 400 == 0 or (batch_idx-401) % 400 == 0:
                 self.log("train", inputs, outputs, losses)
                 # self.val("real")
                 # self.val("syn")
 
             if (batch_idx + 1) % 2 == 0:
-                # self.current_lr = self.model_lr_scheduler.get_last_lr()[0]
-                self.current_lr = self.update_learning_rate(self.model_optimizer, self.opt.learning_rate)
+                self.current_lr = self.model_lr_scheduler.get_last_lr()[0]
+                # self.current_lr = self.update_learning_rate(self.model_optimizer, self.opt.learning_rate)
 
         mean_night_err = self.evaluate(split='night')
         mean_day_err = self.evaluate(split='day')
@@ -368,7 +385,7 @@ class MonoDEVSNetTrainer(Trainer):
         outputs = self.models["depth_decoder"](features)
 
         if self.opt.use_dc:
-            # self.lambda_ = self.get_lambda(self.epoch, self.opt.num_epochs)
+            self.lambda_ = self.get_lambda(self.epoch, self.opt.num_epochs)
             outputs['domain_classifier'] = self.models['domain_classifier'](raw_hrnet_features, self.lambda_)
 
         if self.opt.use_pose_net:
@@ -536,7 +553,7 @@ class MonoDEVSNetTrainer(Trainer):
                 disp = F.interpolate(disp, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
                 source_scale = 0
 
-                _, depth = disp_to_depth(disp, self.opt.min_depth, self.opt.max_depth)
+                _, depth =  (disp, self.opt.min_depth, self.opt.max_depth)
 
                 outputs[("depth", 0, scale)] = depth
 
@@ -544,6 +561,55 @@ class MonoDEVSNetTrainer(Trainer):
             self.generate_images_pred(inputs, outputs)
         else:
             raise RuntimeError("choose synthetic or real data")
+
+    def generate_gan_outputs(self, day_disp, night_disp):
+        # (n, 1, h, w)
+        # remove scale
+        night_disp = night_disp / night_disp.mean(dim=3, keepdim=True).mean(dim=2, keepdim=True)
+        day_disp = day_disp / day_disp.mean(dim=3, keepdim=True).mean(dim=2, keepdim=True)
+        # image coordinates
+        if self.opt.use_position_map:
+            n = night_disp.shape[0]
+            height_map = self.height_map.repeat(n, 1, 1, 1).to(self.device)
+            width_map = self.width_map.repeat(n, 1, 1, 1).to(self.device)
+        else:
+            height_map = None
+            width_map = None
+        return day_disp, night_disp, height_map, width_map
+    
+    def compute_G_loss(self, night_disp, height_map, width_map):
+        G_loss = 0.0
+        #
+        # Compute G loss
+        #
+        freeze_model(self.models["depth_classifier"])
+        if self.opt.use_position_map:
+            fake_day = torch.cat([height_map, width_map, night_disp], dim=1)
+        else:
+            fake_day = night_disp
+        G_loss += self.gan_loss(self.models["depth_classifier"](fake_day), True)
+
+        return G_loss
+
+    def compute_D_loss(self, day_disp, night_disp, height_map, width_map):
+        D_loss = 0.0
+        #
+        # Compute D loss
+        #
+        unfreeze_model(self.models["depth_classifier"])
+        if self.opt.use_position_map:
+            real_day = torch.cat([height_map, width_map, day_disp.detach()], dim=1)
+            fake_day = torch.cat([height_map, width_map, night_disp.detach()], dim=1)
+        else:
+            real_day = day_disp.detach()
+            fake_day = night_disp.detach()
+        # query
+        # fake_day = self.image_pool.query(fake_day)
+        # compute loss
+        D_loss += self.gan_loss(self.models["depth_classifier"](real_day), True)
+        D_loss += self.gan_loss(self.models["depth_classifier"](fake_day), False)
+
+        return D_loss
 
     def compute_losses_local(self, inputs, outputs):
         # Choose loss function based on input data
@@ -568,7 +634,6 @@ class MonoDEVSNetTrainer(Trainer):
 
         if 'self' in self.opt.real_loss_fcn and "real" in self.syn_or_real:
             losses.update(self.compute_losses(inputs, outputs))
-
             # Loss equalizer
             losses["loss/self_real"] = losses["loss"].cpu().data
             weight_self_loss = self.previous_sf_day_loss / losses["loss/self_real"] if self.opt.use_le else self.opt.self_scaling_factor
@@ -580,9 +645,44 @@ class MonoDEVSNetTrainer(Trainer):
             # Loss equalizer
             losses["loss/self_syn"] = losses["loss"].cpu().data
             self.previous_sf_day_loss = losses["loss"].cpu().data
-
         else:
             raise RuntimeError('choose a loss function for each syn and real dataset')
+
+        if self.epoch >= 15:
+            # Loss depth classifier
+            if self.syn_or_real == 'syn':
+                self.day_disp = outputs['disp', 0]
+
+            elif self.syn_or_real == 'real':
+                self.night_disp = outputs['disp', 0]
+
+                # generate outputs for gan
+                day_disp, night_disp, height_map, width_map = self.generate_gan_outputs(self.day_disp, self.night_disp)
+                #
+                # optimize D
+                # 
+                # compute loss
+                D_loss = self.compute_D_loss(day_disp, night_disp, height_map, width_map)
+                losses['loss/D_depth_classifier'] = D_loss.detach().cpu().data
+                D_loss = D_loss * self.opt.D_weight
+                # print(losses['loss/D_depth_classifier'])
+
+                # optimize D
+                self.depth_classifier_optim.zero_grad()
+                D_loss.backward()
+                self.depth_classifier_optim.step()
+
+                #
+                # optimize G
+                #
+                # compute loss
+                G_loss = self.compute_G_loss(night_disp, height_map, width_map)
+                losses['loss/G_depth_classifier'] = G_loss.detach().cpu().data
+                G_loss = G_loss * self.opt.G_weight 
+                # print(losses['loss/G_depth_classifier'])
+
+                # optimize G
+                losses["G_depth_classifier"] = G_loss
 
         return losses
 
@@ -667,10 +767,10 @@ class MonoDEVSNetTrainer(Trainer):
                             outputs["predictive_mask"][("disp", s)][j, f_idx][None, ...],
                             self.step)
 
-                elif not self.opt.disable_automasking:
-                    writer.add_image(
-                        "automask_{}/{}".format(s, j),
-                        outputs["identity_selection/{}".format(s)][j][None, ...], self.step)
+                # elif not self.opt.disable_automasking:
+                #     writer.add_image(
+                #         "automask_{}/{}".format(s, j),
+                #         outputs["identity_selection/{}".format(s)][j][None, ...], self.step)
 
 
     def save_opts(self):
@@ -798,6 +898,10 @@ class MonoDEVSNetTrainer(Trainer):
                                           self.opt.weights_init == "pretrained",
                                           num_input_images=2).to(self.device)
 
+        elif model_key == 'depth_classifier':
+            in_chs_D = 3 if self.opt.use_position_map else 1
+            return networks.NLayerDiscriminator(in_chs_D, n_layers=3).to(self.device)
+
         # Add other models
         elif model_key == 'pose':
             if self.opt.pose_model_type == "separate_resnet":
@@ -838,3 +942,5 @@ if __name__ == "__main__":
     monodevs.train()
 
     TheEnd = 1
+
+

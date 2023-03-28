@@ -7,3 +7,4 @@ from .hrnet_module import HRNet, BasicBlock
 from .densenet_encoder import densenet161, densenet201, densenet121, densenet169
 from .encoders import HRNetPyramidEncoder, DensenetPyramidEncoder
 from .domain_classifier import DomainClassifier
+from .depth_classifier import GANLoss, NLayerDiscriminator

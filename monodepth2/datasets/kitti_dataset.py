@@ -92,7 +92,6 @@ class KITTIRAWDataset(KITTIDataset):
         
         f_str = "{:010d}{}".format(frame_index, self.img_ext)
         depth_path = os.path.join(self.data_path, folder+'_gt', f_str)
-
         img_file = Image.open(depth_path)
         depth_png = np.array(img_file, dtype=int)
         img_file.close()

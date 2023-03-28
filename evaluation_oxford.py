@@ -188,14 +188,45 @@ class Evaluation(object):
         self.im_path_list = []
         if self.opt.real_dataset == 'kitti':
             print("KITTI choose")
-            real_eigen = readlines(os.path.join(os.path.dirname(__file__), "splits", "eigen", "test_files.txt"))
-            dataset = KITTIRAWDataset(data_path=self.opt.real_data_path, filenames=real_eigen,
-                                      height=self.opt.height, width=self.opt.width,
-                                      frame_idxs=[0], num_scales=4, is_train=False,
-                                      img_ext=img_ext)
-            self.dataloader = DataLoader(dataset, self.opt.batch_size, shuffle=False, num_workers=opt.num_workers,
-                                         pin_memory=True, drop_last=False)
-            print('Total number of images in {} dataset: {}'.format(self.opt.real_dataset, dataset.__len__()))
+            # real_eigen = readlines(os.path.join(os.path.dirname(__file__), "splits", "eigen", "test_files.txt"))
+            # dataset = KITTIRAWDataset(data_path=self.opt.real_data_path, filenames=real_eigen,
+            #                           height=self.opt.height, width=self.opt.width,
+            #                           frame_idxs=[0], num_scales=4, is_train=False,
+            #                           img_ext=img_ext)
+            # self.dataloader = DataLoader(dataset, self.opt.batch_size, shuffle=False, num_workers=opt.num_workers,
+            #                              pin_memory=True, drop_last=False)
+            # print('Total number of images in {} dataset: {}'.format(self.opt.real_dataset, dataset.__len__()))
+
+            #### Validation dataset ###
+            # NIGHT
+            real_f_path = os.path.join(os.path.dirname(__file__), "monodepth2/splits", self.opt.real_split, "{}_files.txt")
+            real_filenames = readlines(real_f_path.format("val_night"))
+            real_val_dataset = KITTIRAWDataset(data_path=self.opt.real_data_path, filenames=real_filenames,
+                                                height=self.opt.height, width=self.opt.width,
+                                                frame_idxs=[0], num_scales=4, is_train=False,
+                                                img_ext=img_ext)
+            print('Total number of images in {} dataset: {}'.format(self.opt.real_dataset, real_val_dataset.__len__()))
+
+            # DAY
+            syn_f_path =  os.path.join(os.path.dirname(__file__), "monodepth2/splits", self.opt.syn_split, "{}_files.txt")
+            syn_filenames = readlines(syn_f_path.format("val_day"))
+            syn_val_dataset = KITTIRAWDataset(data_path=self.opt.syn_data_path, filenames=syn_filenames,
+                                                height=self.opt.height, width=self.opt.width,
+                                                frame_idxs=[0], num_scales=4, is_train=False,
+                                                img_ext=img_ext)
+            print('Total number of images in {} dataset: {}'.format(self.opt.syn_dataset, syn_val_dataset.__len__()))
+
+            ### Validation loader ###
+            # NIGHT 
+            self.real_val_loader = DataLoader(
+                real_val_dataset, self.opt.batch_size, False,
+                num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
+
+            # DAY
+            self.syn_val_loader = DataLoader(
+                syn_val_dataset, self.opt.batch_size, False,
+                num_workers=self.opt.num_workers, pin_memory=True, drop_last=False)
+
         elif self.opt.real_dataset == 'kitti_depth':
             real_eigen = readlines(os.path.join(os.path.dirname(__file__), "splits", "eigen", "test_files.txt"))
             dataset = KITTIDepthDataset(data_path=self.opt.real_data_path, filenames=real_eigen,
@@ -232,7 +263,7 @@ class Evaluation(object):
         disp_resized_np = disp_resized.detach().cpu().numpy().squeeze()
         vmax = np.percentile(disp_resized_np, 95)
         normalizer = mpl.colors.Normalize(vmin=disp_resized_np.min(), vmax=vmax)
-        mapper = cm.ScalarMappable(norm=normalizer, cmap='turbo')
+        mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
         colormapped_im = (mapper.to_rgba(disp_resized_np)[:, :, :3] * 255).astype(np.uint8)
         # pred_depth_color = torch.from_numpy(colormapped_im).float().to("cuda")
         # pred_depth_color = pred_depth_color.permute((2, 0, 1))
@@ -269,18 +300,25 @@ class Evaluation(object):
                 pred_depth_t[pred_depth_t < self.opt.min_depth] = self.opt.min_depth
                 pred_depth_t[pred_depth_t > self.opt.max_depth] = self.opt.max_depth
 
+                # # Save information
+                # folder_name = os.path.dirname(im_path).split('/')[-1]
+                # depth_save_path = im_path.replace(folder_name + '/',
+                #                                   folder_name + '_' + 'depth_MonoDEVSNet' + '/'). \
+                #     replace('.jpg', '.png')
+                # pred_depth_o = Image.fromarray(np.array(F.interpolate(pred_depth_t,
+                #                                                       (height_o, width_o)).squeeze() * 256,
+                #                                         dtype=np.uint16))
+                # pred_depth_color = Image.fromarray(np.array(turbo(F.interpolate(pred_depth_t,
+                #                                                                 (height_o, width_o),
+                #                                                                 mode='bilinear').squeeze() /
+                #                                                   self.opt.max_depth)[:, :, :3] * 255, dtype=np.uint8))
+                # pred_depth_color_numpy = self.convert_disp_depth_map(output[("disp", 0)][0].unsqueeze(0))
+
+
                 # Save information
-                folder_name = os.path.dirname(im_path).split('/')[-1]
-                depth_save_path = im_path.replace(folder_name + '/',
-                                                  folder_name + '_' + 'depth_MonoDEVSNet' + '/'). \
+                img_name = im_path.split('/')[-1]
+                depth_save_path = ('./evaluation/' + self.opt.image_folder_path.split('/')[-1] + '/' + img_name). \
                     replace('.jpg', '.png')
-                pred_depth_o = Image.fromarray(np.array(F.interpolate(pred_depth_t,
-                                                                      (height_o, width_o)).squeeze() * 256,
-                                                        dtype=np.uint16))
-                pred_depth_color = Image.fromarray(np.array(turbo(F.interpolate(pred_depth_t,
-                                                                                (height_o, width_o),
-                                                                                mode='bilinear').squeeze() /
-                                                                  self.opt.max_depth)[:, :, :3] * 255, dtype=np.uint8))
                 pred_depth_color_numpy = self.convert_disp_depth_map(output[("disp", 0)][0].unsqueeze(0))
 
 
@@ -299,9 +337,96 @@ class Evaluation(object):
         if self.opt.real_dataset == 'any':
             return self.eval_any()
         else:
-            return self.eval_local()
+            self.evaluate("day")
+            self.evaluate("night")
+            # return self.eval_local()
 
-    
+    def evaluate(self, split='night'):
+        """Evaluates a pretrained model using a specified test set
+        """
+        MIN_DEPTH = 1e-3
+        MAX_DEPTH = 80
+
+        # MIN_DEPTH = 0.1
+        # MAX_DEPTH = 100
+
+        pred_disps = []
+        gt = []
+
+        if split=='day':
+            dataloader = self.syn_val_loader
+            val_split = 'val_day'
+        elif split =='night':
+            dataloader = self.real_val_loader
+            val_split = 'val_night'
+
+        with torch.no_grad():
+            for data in dataloader:
+                input_color = data[("color", 0, 0)].cuda()
+
+                features, raw_hrnet_features = self.models["encoder"](input_color)
+                output = self.models["depth_decoder"](features)
+
+                # Convert disparity into depth maps
+                pred_disp = self.invdepth_to_depth(output[("disp", 0)])
+                pred_disp = pred_disp.cpu()[:, 0].numpy()
+
+                pred_disps.append(pred_disp)
+                gt.append(np.squeeze(data['depth_gt'].cpu().numpy()))
+
+        pred_disps = np.concatenate(pred_disps)
+        gt = np.concatenate(gt)
+
+        print("="*50)
+        print("-> Evaluating " + val_split)
+        print("   Mono evaluation - using median scaling")
+
+        errors = []
+        ratios = []
+
+        for i in range(pred_disps.shape[0]):
+
+            gt_depth = gt[i]
+            gt_height, gt_width = gt_depth.shape[:2]
+
+            pred_disp = pred_disps[i]
+            pred_disp = cv2.resize(pred_disp, (gt_width, gt_height))
+            pred_depth = 1 / pred_disp
+
+            mask = gt_depth > 0
+            # mask = (gt_depth > MIN_DEPTH) & (gt_depth < MAX_DEPTH)
+
+            pred_depth = pred_depth[mask]
+            gt_depth = gt_depth[mask]
+
+            pred_depth *= self.opt.pred_depth_scale_factor
+            if not self.opt.disable_median_scaling:
+                ratio = np.median(gt_depth) / np.median(pred_depth)
+                ratios.append(ratio)
+                pred_depth *= ratio
+
+            pred_depth[pred_depth < MIN_DEPTH] = MIN_DEPTH
+            pred_depth[pred_depth > MAX_DEPTH] = MAX_DEPTH
+
+            # range 40m
+            mask2 = gt_depth<=40
+            pred_depth = pred_depth[mask2]
+            gt_depth = gt_depth[mask2]
+
+            errors.append(compute_errors(gt_depth, pred_depth))
+
+        if not self.opt.disable_median_scaling:
+            ratios = np.array(ratios)
+            med = np.median(ratios)
+            print(" Scaling ratios | med: {:0.3f} | std: {:0.3f}".format(med, np.std(ratios / med)))
+
+        mean_errors = np.array(errors).mean(0)
+
+        print("\n  " + ("{:>8} | " * 7).format("abs_rel", "sq_rel", "rmse", "rmse_log", "a1", "a2", "a3"))
+        print(("&{: 8.3f}  " * 7).format(*mean_errors.tolist()) + "\\\\")
+        # print("\n-> Done!")
+
+        return mean_errors
 
     def eval_local(self):
         errors_absolute, errors_relative, ratios, time_taken, time_for_each_frame, total_time = \
@@ -328,7 +453,7 @@ class Evaluation(object):
                 # Convert disparity into depth maps
                 pred_disp = self.invdepth_to_depth(output[("disp", 0)])
                 pred_disp = pred_disp[0, 0].cpu().numpy()
-                pred_depth_raw = 3. / pred_disp.copy()
+                pred_depth_raw = 1. / pred_disp.copy()
 
                 if 'kitti' in self.opt.real_dataset:
                     if self.opt.real_dataset == 'kitti_depth':

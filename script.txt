@@ -63,9 +63,64 @@ python onlynightscenes_trainer.py \
         --syn_data_path /media/aiteam/DataAI/depth_datasets/oxford \
         --eval_mono
 
-python -m monodepth2.evaluate_depth --load_weights_folder /home/aiteam/tmp/HRNet18_dcF_leF_512x256_only_night_adss_slipt/models/weights_15 \
+python -m monodepth2.evaluate_depth --load_weights_folder /home/aiteam/tmp/HRNet18_dcT_leT_512x256_all_images_depth_classifier/models/weights_15 \
                             --eval_split oxford_night_411 \
                             --eval_mono \
                             --models_fcn_name encoder HRNet \
                             --num_layers 18 \
                             --png
+
+
+python evaluation.py --png\
+  --real_dataset any \
+  --num_layers 18 \
+  --models_fcn_name encoder HRNet \
+  --image_folder_path /media/aiteam/DataAI/depth_datasets/oxford/night_val_411 \
+  --load_weights_folder /home/aiteam/tmp/HRNet18_dcT_leT_512x256_all_images_depth_classifier/models/weights_15
+
+
+python nightscenes_trainer.py \
+        --use_dc --use_le --use_position_map --png \
+        --models_fcn_name encoder HRNet \
+        --num_layers 18 \
+        --cuda_idx 0 \
+        --num_workers 6 \
+        --num_epochs 20 \
+        --batch_size 4 \
+        --height 256 \
+        --width 512 \
+        --version all_images_depth_classifier \
+        --real_dataset kitti \
+        --syn_dataset kitti \
+        --real_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --syn_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --eval_mono
+
+
+python nightscenes_trainer.py \
+        --use_dc --use_le --use_position_map --png \
+        --models_fcn_name encoder HRNet \
+        --num_layers 32 \
+        --cuda_idx 0 \
+        --num_workers 6 \
+        --num_epochs 20 \
+        --batch_size 2 \
+        --height 256 \
+        --width 512 \
+        --version all_images_depth_classifier \
+        --real_dataset kitti \
+        --syn_dataset kitti \
+        --real_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --syn_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+        --eval_mono
+
+
+python evaluation_oxford.py --png\
+  --real_dataset kitti \
+  --syn_dataset kitti \
+  --num_layers 18 \
+  --models_fcn_name encoder HRNet \
+  --real_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+  --syn_data_path /media/aiteam/DataAI/depth_datasets/oxford \
+  --load_weights_folder /home/aiteam/tmp/HRNet18_dcT_leT_512x256_all_images_depth_classifier/models/weights_15
+
