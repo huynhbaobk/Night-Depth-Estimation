@@ -122,7 +122,7 @@ class Trainer:
 
         fpath = os.path.join(os.path.dirname(__file__), "splits", self.opt.split, "{}_files.txt")
 
-        train_filenames = readlines(fpath.format("train_all"))
+        train_filenames = readlines(fpath.format("train"))
         val_night_filenames = readlines(fpath.format("val_night"))
         val_day_filenames = readlines(fpath.format("val_day"))
         img_ext = '.png' if self.opt.png else '.jpg'
@@ -228,7 +228,7 @@ class Trainer:
             # late_phase = self.step % 2000 == 0
 
             # if early_phase or late_phase:
-            if batch_idx % 200 == 0:
+            if batch_idx % 800 == 0:
                 self.log_time(batch_idx, duration, losses["loss"].cpu().data)
 
                 if "depth_gt" in inputs:
@@ -527,13 +527,13 @@ class Trainer:
                 outputs[("sample", frame_id, scale)] = pix_coords
 
                 outputs[("color", frame_id, scale)] = F.grid_sample(
-                    inputs[("color", frame_id, source_scale)],
+                    inputs[("color_denoise", frame_id, source_scale)],
                     outputs[("sample", frame_id, scale)],
                     padding_mode="border")
 
                 if not self.opt.disable_automasking:
                     outputs[("color_identity", frame_id, scale)] = \
-                        inputs[("color", frame_id, source_scale)]
+                        inputs[("color_denoise", frame_id, source_scale)]
 
     def compute_reprojection_loss(self, pred, target):
         """Computes reprojection loss between a batch of predicted and target images
@@ -565,8 +565,8 @@ class Trainer:
                 source_scale = 0
 
             disp = outputs[("disp", scale)]
-            color = inputs[("color", 0, scale)]
-            target = inputs[("color", 0, source_scale)]
+            color = inputs[("color_denoise", 0, scale)]
+            target = inputs[("color_denoise", 0, source_scale)]
 
             for frame_id in self.opt.frame_ids[1:]:
                 pred = outputs[("color", frame_id, scale)]
@@ -575,11 +575,12 @@ class Trainer:
             reprojection_losses = torch.cat(reprojection_losses, 1)
 
             if not self.opt.disable_automasking:
+                _target = inputs[("color_denoise", 0, source_scale)]
                 identity_reprojection_losses = []
                 for frame_id in self.opt.frame_ids[1:]:
-                    pred = inputs[("color", frame_id, source_scale)]
+                    pred = inputs[("color_denoise", frame_id, source_scale)]
                     identity_reprojection_losses.append(
-                        self.compute_reprojection_loss(pred, target))
+                        self.compute_reprojection_loss(pred, _target))
 
                 identity_reprojection_losses = torch.cat(identity_reprojection_losses, 1)
 

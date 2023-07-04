@@ -55,15 +55,30 @@ class KITTIDataset(MonoDataset):
         return os.path.isfile(velo_filename)
 
     def get_color(self, folder, frame_index, side, do_flip):
-        color = self.loader(self.get_image_path(folder, frame_index, side))
+        image_path = self.get_image_path(folder, frame_index, side)
+        color = self.loader(image_path)
+        color_denoise = color
+
         if self.is_train: #Because valdiation + test have already been crop
+            folder_denoise = folder + "_denoise"
+            image_denoise_path = image_path.replace(folder, folder_denoise)
+            color_denoise = self.loader(image_denoise_path)
+
             color = color.crop((0, 160, 1280, 960-160))
             color = color.resize((512, 256),Image.ANTIALIAS)
 
+            color_denoise = color_denoise.crop((0, 160, 1280, 960-160))
+            color_denoise = color_denoise.resize((512, 256),Image.ANTIALIAS) 
+
         if do_flip:
             color = color.transpose(pil.FLIP_LEFT_RIGHT)
+            if self.is_train:
+                color_denoise = color_denoise.transpose(pil.FLIP_LEFT_RIGHT)
 
-        return color
+        # if self.is_train:
+        #     return color, color_denoise
+
+        return color, color_denoise
 
 
 class KITTIRAWDataset(KITTIDataset):
