@@ -52,7 +52,7 @@ def main():
 
     # prepare data loader
     dataset = build_dataset(cfg.dataset)
-    loader = DataLoader(dataset, cfg.imgs_per_gpu, shuffle=False, num_workers=cfg.workers_per_gpu, drop_last=True)
+    loader = DataLoader(dataset, cfg.imgs_per_gpu, shuffle=True, num_workers=cfg.workers_per_gpu, drop_last=True)
 
     if cfg.model.name == 'rnw':
         cfg.data_link = dataset
@@ -67,7 +67,7 @@ def main():
                                           save_weights_only=True,
                                           save_top_k=-1,
                                           filename='checkpoint_{epoch}',
-                                          every_n_epochs=1)
+                                          every_n_epochs=cfg.checkpoint_epoch_interval)
     trainer = Trainer(accelerator='cuda',
                       default_root_dir=work_dir,
                       gpus=args.gpus,

@@ -14,14 +14,15 @@ from .common import ROBOTCAR_ROOT
 _RGB_EXT = '.png'
 #RNW
 # # crop size
-_CROP_SIZE = (1152, 640)
-# half size
-_HALF_SIZE = (576, 320)
-#ADDS
-# # crop size
-# _CROP_SIZE = (1280, 640)
+# _CROP_SIZE = (1152, 640)
 # # half size
-# _HALF_SIZE = (512, 256)
+# _HALF_SIZE = (576, 320)
+
+#ADDS
+# crop size
+_CROP_SIZE = (1280, 640)
+# half size
+_HALF_SIZE = (512, 256)
 
 # limit of equ
 _EQU_LIMIT = 0.008

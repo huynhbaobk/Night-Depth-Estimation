@@ -52,6 +52,7 @@ class RNWModel(LightningModule):
         self.gt = {}
         self.min_depth = 1e-5
         self.max_depth = 60.0
+        self.step = 0
 
         # components
         self.gan_loss = GANLoss('lsgan')
@@ -171,6 +172,7 @@ class RNWModel(LightningModule):
         return D_loss
 
     def training_step(self, batch_data, batch_idx):
+        self.step +=1
         # optimizers
         optim_G, optim_D = self.optimizers()
 
@@ -191,7 +193,7 @@ class RNWModel(LightningModule):
         outputs = self.G(night_inputs)
 
         # loss for ego-motion
-        disp_loss_dict = self.compute_disp_losses(night_inputs, outputs, self.global_step, logger)
+        disp_loss_dict = self.compute_disp_losses(night_inputs, outputs)
         
         # generate outputs for gan
         day_disp, night_disp, height_map, width_map = self.generate_gan_outputs(day_inputs, outputs)
@@ -203,6 +205,27 @@ class RNWModel(LightningModule):
         G_loss = self.compute_G_loss(night_disp, height_map, width_map)        
         S_loss = sum(sci_loss_dict.values())
         disp_loss = sum(disp_loss_dict.values())
+
+        if int(self.step%LOG_STEP) == 0:
+            # log loss
+            logger.add_scalar('train/G_loss', G_loss, self.step)
+            logger.add_scalar('train/disp_loss', disp_loss, self.step)
+            logger.add_scalar('train/S_loss', S_loss, self.step)
+
+            # log input images
+            for frame_id in self.opt.frame_ids[:1]:
+                color = night_inputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
+                logger.add_images(f"input_color_frame_{frame_id}", normalize_image(color), self.step)
+
+            # log output images
+            for frame_id in self.opt.frame_ids[1:2]:
+                color_pred = outputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
+                logger.add_images(f"output_color_frame_{frame_id}", normalize_image(color_pred), self.step)
+
+            # log depth
+            disp = outputs[("disp", 0, 0)]
+            logger.add_images(f"output_dis_0", normalize_image(disp), self.step)
+
 
         # log
         # logger.add_scalar('train/disp_loss', disp_loss, self.global_step)
@@ -229,29 +252,9 @@ class RNWModel(LightningModule):
         D_loss = self.compute_D_loss(day_disp, night_disp, height_map, width_map)
 
         # # log
-        # logger.add_scalar('train/D_loss', D_loss, self.global_step)
-        if int(self.global_step%LOG_STEP) == 1:
-            # log loss
-            # self.logger.experiment.add_scalar('train/disp_loss', disp_loss, self.global_step)
-                    # log
-            logger.add_scalar('train/disp_loss', disp_loss, self.global_step)
-            logger.add_scalar('train/G_loss', G_loss, self.global_step)
-            logger.add_scalar('train/D_loss', D_loss, self.global_step)
-
-            # log input images
-            for frame_id in self.opt.frame_ids:
-                color = night_inputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
-                logger.add_images(f"input_color_frame_{frame_id}", normalize_image(color), self.global_step)
-
-            # log output images
-            for frame_id in self.opt.frame_ids[1:]:
-                color_pred = outputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
-                logger.add_images(f"output_color_frame_{frame_id}", normalize_image(color_pred), self.global_step)
-
-            # log depth
-            disp = outputs[("disp", 0, 0)]
-            logger.add_images(f"output_dis_0", normalize_image(disp), self.global_step)
-
+        if int(self.step%LOG_STEP) == 0:
+            logger.add_scalar('train/D_loss', D_loss, self.step)
+        
 
         D_loss = D_loss * self.opt.D_weight
 
@@ -490,7 +493,8 @@ class RNWModel(LightningModule):
         # return
         return static_mask
     
-    def compute_disp_losses(self, inputs, outputs, global_step=0, logger=None):
+    def compute_disp_losses(self, inputs, outputs):
+        logger = self.logger.experiment
 
         loss_dict = {}
         if self.opt.use_hist_mask:
@@ -545,18 +549,18 @@ class RNWModel(LightningModule):
                 if use_static_mask:
                     static_mask = self.get_static_mask(pred, target)
                     identity_reprojection_loss *= static_mask
-                    if int(global_step%LOG_STEP) == 0:
-                        logger.add_images(f"static_mask_frame_{frame_id}", normalize_image(static_mask), global_step)
+                    if int(self.step%LOG_STEP) == 0:
+                        logger.add_images(f"static_mask_frame_{frame_id}", normalize_image(static_mask), self.step)
 
                     if use_hist_mask:
                         identity_reprojection_loss *= light_mask
-                        if int(global_step%LOG_STEP) == 0:
-                            logger.add_images(f"hist_mask_frame_{frame_id}", normalize_image(light_mask), global_step)
+                        if int(self.step%LOG_STEP) == 0:
+                            logger.add_images(f"hist_mask_frame_{frame_id}", normalize_image(light_mask), self.step)
                     if use_illu_mask:
                         identity_reprojection_loss *= inputs[("light_mask", 0, 0)]
                         # identity_reprojection_loss *= inputs[("scale_k", 0, 0)]
-                        if int(global_step%LOG_STEP) == 0:
-                            logger.add_images(f"illu_mask_frame_{frame_id}", normalize_image(inputs[("light_mask", 0, 0)]), global_step)
+                        if int(self.step%LOG_STEP) == 0:
+                            logger.add_images(f"illu_mask_frame_{frame_id}", normalize_image(inputs[("light_mask", 0, 0)]), self.step)
 
                 reprojection_losses.append(identity_reprojection_loss)
 

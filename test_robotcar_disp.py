@@ -64,7 +64,6 @@ if __name__ == '__main__':
     # store results
     predictions = []
     # model
-    print(args.checkpoint)
     model_name = cfg.model.name
     net: pytorch_lightning.LightningModule = MODELS.build(name=model_name, option=cfg)
     net.load_state_dict(torch.load(args.checkpoint)['state_dict'])
