@@ -17,6 +17,7 @@ _RGB_EXT = '.png'
 # _CROP_SIZE = (1152, 640)
 # # half size
 # _HALF_SIZE = (576, 320)
+# _HALF_SIZE = (288, 160)
 
 #ADDS
 # crop size
@@ -170,21 +171,21 @@ class RobotCarSequence(Dataset):
             for fi in self._frame_ids:
                 # get color
                 color = src_colors[fi]
-                color_gray = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)
+                # color_gray = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)
                 # equ_color = equ_hist(color)
                 # to tensor
                 color = self._to_tensor(color)
                 # equ_color = self._to_tensor(equ_color)
-                color_gray = self._to_tensor(color_gray)
+                # color_gray = self._to_tensor(color_gray)
                 # resize
                 if s != 0:
                     color = F.interpolate(color.unsqueeze(0), (rh, rw), mode='area').squeeze(0)
                     # equ_color = F.interpolate(equ_color.unsqueeze(0), (rh, rw), mode='area').squeeze(0)
-                    color_gray = F.interpolate(color_gray.unsqueeze(0), (rh, rw), mode='area').squeeze(0)
+                    # color_gray = F.interpolate(color_gray.unsqueeze(0), (rh, rw), mode='area').squeeze(0)
                 # (name, frame_idx, scale)
                 out['color', fi, s] = color
                 out['color_aug', fi, s] = color
-                out['color_gray', fi, s] = color_gray
+                # out['color_gray', fi, s] = color_gray
                 # if self._gen_equ:
                 #     out['color_equ', fi, s] = equ_color
         return out

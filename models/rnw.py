@@ -103,10 +103,11 @@ class RNWModel(LightningModule):
             return self.G(inputs)
         else:
             self.S.eval()
-            sci_gray = inputs[("color_gray", 0, 0)][0].unsqueeze(0)
+            # sci_gray = inputs[("color_gray", 0, 0)][0].unsqueeze(0)
             sci_color = inputs[("color", 0, 0)][0].unsqueeze(0)                    
-            illu_list, _, _, _, _ = self.S(sci_gray)
-            illu = illu_list[0][0][0]
+            # illu_list, _, _, _, _ = self.S(sci_gray)
+            illu_list, _, _, _, _ = self.S(sci_color)
+            illu = illu_list[-1][0]
 
             illu = torch.stack([illu, illu, illu])
 
@@ -182,6 +183,14 @@ class RNWModel(LightningModule):
         # get input data
         day_inputs = batch_data['day']
         night_inputs = batch_data['night']
+
+
+        if int(self.step%LOG_STEP) == 0:
+            # log input images
+            for frame_id in self.opt.frame_ids[:1]:
+                color = night_inputs[("color", frame_id, 0)]
+                logger.add_images(f"input_color_frame_{frame_id}", color, self.step)
+
         
         # TODO: get relight img
         night_inputs, sci_loss_dict = self.get_sci_relight(night_inputs)
@@ -214,17 +223,17 @@ class RNWModel(LightningModule):
 
             # log input images
             for frame_id in self.opt.frame_ids[:1]:
-                color = night_inputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
-                logger.add_images(f"input_color_frame_{frame_id}", normalize_image(color), self.step)
+                color_aug = night_inputs[("color_aug", frame_id, 0)]
+                logger.add_images(f"input_color_aug_frame_{frame_id}", color_aug, self.step)
 
             # log output images
             for frame_id in self.opt.frame_ids[1:2]:
-                color_pred = outputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
-                logger.add_images(f"output_color_frame_{frame_id}", normalize_image(color_pred), self.step)
+                color_pred = outputs[("color", frame_id, 0)]
+                logger.add_images(f"output_color_frame_{frame_id}", color_pred, self.step)
 
             # log depth
             disp = outputs[("disp", 0, 0)]
-            logger.add_images(f"output_dis_0", normalize_image(disp), self.step)
+            logger.add_images(f"output_dis_0", disp, self.step)
 
 
         # log
@@ -268,16 +277,18 @@ class RNWModel(LightningModule):
         with torch.no_grad():
             test_input = batch_data
             self.S.eval()
-            sci_gray = test_input[("color_gray", 0, 0)]
+            # sci_gray = test_input[("color_gray", 0, 0)]
             sci_color = test_input[("color", 0, 0)]
             gt = test_input[("gt", 0, 0)][0][0]
             gh, gw = gt.shape
             b, c, rh, rw = sci_color.shape                   
             sf = float(gh / rh)
 
-            illu_list, _, _, _, i_k = self.S(sci_gray)
-            illu = illu_list[0][0][0]
-            illu = torch.stack([illu, illu, illu])
+            # illu_list, _, _, _, i_k = self.S(sci_gray)
+            illu_list, _, _, _, i_k = self.S(sci_color)
+
+            illu = illu_list[-1][0]
+            # illu = torch.stack([illu, illu, illu])
             illu = illu.unsqueeze(0)
             r = sci_color / illu
             r = torch.clamp(r, 0, 1)
@@ -368,14 +379,17 @@ class RNWModel(LightningModule):
         for scale in self.opt.scales:
 
             for frame_id in self.opt.frame_ids:
-                sci_gray = inputs[("color_gray", frame_id, scale)]
+                # sci_gray = inputs[("color_gray", frame_id, scale)]
                 sci_color = inputs[("color", frame_id, scale)]
-                loss, illu_list, i_k = self.S._loss(sci_gray, frame_id) #todo: index 0 loss, index 0, -1, 1 img
+                #loss, illu_list, i_k = self.S._loss(sci_gray, frame_id) #todo: index 0 loss, index 0, -1, 1 img
+                loss, illu_list, i_k = self.S._loss(sci_color, frame_id) #todo: index 0 loss, index 0, -1, 1 img
+
                 nn.utils.clip_grad_norm_(self.S.parameters(), 5)
                 if frame_id == 0:
                     loss_dict[("sci_loss", 0, scale)] = loss / len(self.opt.scales)
                 
-                illu = illu_list[0]
+                ### get last illu stage
+                illu = illu_list[-1]
                 
                 if scale == 0 and frame_id == 0:
                     if self.opt.use_illu_mask:
@@ -383,9 +397,9 @@ class RNWModel(LightningModule):
                         illu_mask, k = self.auto_illu_mask(i_k)
                         inputs[("scale_k", 0, 0)] = k.detach()
                         inputs[("light_mask", frame_id, scale)] = illu_mask.detach()
-                    inputs[("gray_aug", frame_id, scale)] = (sci_gray / illu).clamp(max=1, min=0)
+                    # inputs[("gray_aug", frame_id, scale)] = (sci_gray / illu).clamp(max=1, min=0)
                 
-                illu = torch.cat((illu, illu, illu), dim=1)
+                # illu = torch.cat((illu, illu, illu), dim=1)
                 r = sci_color / illu
                 r = torch.clamp(r, 0, 1)
                 inputs[("color_aug", frame_id, scale)] = r  
@@ -438,7 +452,7 @@ class RNWModel(LightningModule):
         scales = []
         b, _, _, _ = illu_k.shape
         for i in range(b):
-            i_k = illu_k[i]
+            i_k = illu_k[i][0, :, :].unsqueeze(0)
             # k = 3.141592653589793 / (i_max - i_min)
             # illu_mask = 0.5 * (torch.cos(k * (i_k - i_min)) + 1)
             key_point = self.opt.illu_min * (i_k.median() - i_k.min())
@@ -550,17 +564,17 @@ class RNWModel(LightningModule):
                     static_mask = self.get_static_mask(pred, target)
                     identity_reprojection_loss *= static_mask
                     if int(self.step%LOG_STEP) == 0:
-                        logger.add_images(f"static_mask_frame_{frame_id}", normalize_image(static_mask), self.step)
+                        logger.add_images(f"static_mask_frame_-1", static_mask, self.step)
 
                     if use_hist_mask:
                         identity_reprojection_loss *= light_mask
                         if int(self.step%LOG_STEP) == 0:
-                            logger.add_images(f"hist_mask_frame_{frame_id}", normalize_image(light_mask), self.step)
+                            logger.add_images(f"hist_mask_frame_-1", light_mask, self.step)
                     if use_illu_mask:
                         identity_reprojection_loss *= inputs[("light_mask", 0, 0)]
                         # identity_reprojection_loss *= inputs[("scale_k", 0, 0)]
                         if int(self.step%LOG_STEP) == 0:
-                            logger.add_images(f"illu_mask_frame_{frame_id}", normalize_image(inputs[("light_mask", 0, 0)]), self.step)
+                            logger.add_images(f"illu_mask_frame_-1", inputs[("light_mask", 0, 0)], self.step)
 
                 reprojection_losses.append(identity_reprojection_loss)
 

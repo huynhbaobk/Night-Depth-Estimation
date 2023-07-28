@@ -13,7 +13,7 @@ class EnhanceNetwork(nn.Module):
         padding = int((kernel_size - 1) / 2) * dilation
 
         self.in_conv = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=channels, kernel_size=kernel_size, stride=1, padding=padding),
+            nn.Conv2d(in_channels=3, out_channels=channels, kernel_size=kernel_size, stride=1, padding=padding),
             nn.ReLU()
         )
 
@@ -28,7 +28,7 @@ class EnhanceNetwork(nn.Module):
             self.blocks.append(self.conv)
 
         self.out_conv = nn.Sequential(
-            nn.Conv2d(in_channels=channels, out_channels=1, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=channels, out_channels=3, kernel_size=3, stride=1, padding=1),
             nn.Sigmoid()
         )
 
@@ -54,7 +54,7 @@ class CalibrateNetwork(nn.Module):
         self.layers = layers
 
         self.in_conv = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=channels, kernel_size=kernel_size, stride=1, padding=padding),
+            nn.Conv2d(in_channels=3, out_channels=channels, kernel_size=kernel_size, stride=1, padding=padding),
             nn.BatchNorm2d(channels),
             nn.ReLU()
         )
@@ -72,7 +72,7 @@ class CalibrateNetwork(nn.Module):
             self.blocks.append(self.convs)
 
         self.out_conv = nn.Sequential(
-            nn.Conv2d(in_channels=channels, out_channels=1, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=channels, out_channels=3, kernel_size=3, stride=1, padding=1),
             nn.Sigmoid()
         )
 
@@ -93,7 +93,7 @@ class Network(nn.Module):
     def __init__(self, stage=3):
         super(Network, self).__init__()
         self.stage = stage
-        self.enhance = EnhanceNetwork(layers=1, channels=1)
+        self.enhance = EnhanceNetwork(layers=1, channels=3)
         self.calibrate = CalibrateNetwork(layers=3, channels=16)
         self._criterion = LossFunction()
 
@@ -135,7 +135,7 @@ class Finetunemodel(nn.Module):
 
     def __init__(self, weights):
         super(Finetunemodel, self).__init__()
-        self.enhance = EnhanceNetwork(layers=1, channels=1)
+        self.enhance = EnhanceNetwork(layers=1, channels=3)
         self._criterion = LossFunction()
 
         base_weights = torch.load(weights)

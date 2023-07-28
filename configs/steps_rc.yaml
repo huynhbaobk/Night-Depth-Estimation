@@ -1,6 +1,6 @@
 
 total_epochs: 20
-imgs_per_gpu: &b 2
+imgs_per_gpu: &b 1
 workers_per_gpu: 4
 checkpoint_epoch_interval: 2
 
@@ -11,6 +11,8 @@ dataset:
   frame_ids: &f [ 0, -1, 1 ]
   # width: &w 576
   # height: &h 320
+  # width: &w 288
+  # height: &h 160
   width: &w 512
   height: &h 256
 

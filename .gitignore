@@ -4,3 +4,4 @@ checkpoints/
 vis/
 evaluation/rc_result/
 *.gif
+.ipynb_checkpoints/
