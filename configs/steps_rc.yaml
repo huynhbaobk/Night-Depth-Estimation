@@ -60,8 +60,8 @@ model:
   use_illu_mask: True
   use_hist_mask: False
   
-  illu_max: 0.1
-  illu_min: 0.05
+  illu_max: 0.9
+  illu_min: 0.1
   p: 5
   q: 5
   equ_limit: 0.004

@@ -19,7 +19,7 @@ class SmoothLoss(nn.Module):
         super(SmoothLoss, self).__init__()
         self.sigma = 10
 
-    def rgb2yCbCr(self, input_im):        
+    def bgr2yCbCr(self, input_im):        
         im_flat = input_im.contiguous().view(-1, 3).float()
 
         # mat = torch.Tensor([[0.257, -0.148, 0.439], [0.564, -0.291, -0.368], [0.098, 0.439, -0.071]]).cuda()
@@ -37,7 +37,7 @@ class SmoothLoss(nn.Module):
     # output: output      input:input
     def forward(self, input, output):
         self.output = output
-        self.input = self.rgb2yCbCr(input)
+        self.input = self.bgr2yCbCr(input)
         sigma_color = -1.0 / (2 * self.sigma * self.sigma)
         w1 = torch.exp(torch.sum(torch.pow(self.input[:, :, 1:, :] - self.input[:, :, :-1, :], 2), dim=1,
                                  keepdim=True) * sigma_color)

@@ -22,7 +22,7 @@ from .utils import *
 from SCI.model import *
 from transforms import EqualizeHist
 
-LOG_STEP = 100
+LOG_STEP = 200
 
 def build_disp_net(option, check_point_path):
     # create model
@@ -107,9 +107,10 @@ class RNWModel(LightningModule):
             sci_color = inputs[("color", 0, 0)][0].unsqueeze(0)                    
             # illu_list, _, _, _, _ = self.S(sci_gray)
             illu_list, _, _, _, _ = self.S(sci_color)
-            illu = illu_list[-1][0]
+            # illu = illu_list[0][0][0]
+            illu = illu_list[0][0]
 
-            illu = torch.stack([illu, illu, illu])
+            # illu = torch.stack([illu, illu, illu])
 
             illu = illu.unsqueeze(0)
             r = sci_color / illu
@@ -287,7 +288,7 @@ class RNWModel(LightningModule):
             # illu_list, _, _, _, i_k = self.S(sci_gray)
             illu_list, _, _, _, i_k = self.S(sci_color)
 
-            illu = illu_list[-1][0]
+            illu = illu_list[0][0]
             # illu = torch.stack([illu, illu, illu])
             illu = illu.unsqueeze(0)
             r = sci_color / illu
@@ -389,7 +390,7 @@ class RNWModel(LightningModule):
                     loss_dict[("sci_loss", 0, scale)] = loss / len(self.opt.scales)
                 
                 ### get last illu stage
-                illu = illu_list[-1]
+                illu = illu_list[0]
                 
                 if scale == 0 and frame_id == 0:
                     if self.opt.use_illu_mask:

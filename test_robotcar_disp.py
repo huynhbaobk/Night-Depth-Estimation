@@ -77,6 +77,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         # predict
         for idx, item in enumerate(tqdm(test_items)):
+            print(item)
             # path
             #RNW
             # path = os.path.join(root_dir, 'test_rnw/', '{}.png'.format(item))
