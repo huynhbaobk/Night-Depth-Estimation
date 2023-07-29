@@ -20,15 +20,17 @@ class SmoothLoss(nn.Module):
         self.sigma = 10
 
     def bgr2yCbCr(self, input_im):        
-        im_flat = input_im.contiguous().view(-1, 3).float()
+        #Gray
+        im_flat = input_im.expand(-1, 3, -1, -1).contiguous().view(-1, 3).float()
+        mat = torch.Tensor([[0.257, -0.148, 0.439], [0.564, -0.291, -0.368], [0.098, 0.439, -0.071]]).cuda()
+        bias = torch.Tensor([16.0 / 255.0, 128.0 / 255.0, 128.0 / 255.0]).cuda()
 
-        # mat = torch.Tensor([[0.257, -0.148, 0.439], [0.564, -0.291, -0.368], [0.098, 0.439, -0.071]]).cuda()
-        # bias = torch.Tensor([16.0 / 255.0, 128.0 / 255.0, 128.0 / 255.0]).cuda()
-
-        mat = torch.Tensor([[0.114, 0.587, 0.299],
-                            [0.500, -0.331, -0.169],
-                            [-0.081, -0.419, 0.500]]).cuda()
-        bias = torch.Tensor([128.0 / 255.0, 128 / 255.0, 0.0]).cuda()
+        #Bgr
+        # im_flat = input_im.contiguous().view(-1, 3).float()
+        # mat = torch.Tensor([[0.114, 0.587, 0.299],
+        #                     [0.500, -0.331, -0.169],
+        #                     [-0.081, -0.419, 0.500]]).cuda()
+        # bias = torch.Tensor([128.0 / 255.0, 128 / 255.0, 0.0]).cuda()
 
         temp = im_flat.mm(mat) + bias
         out = temp.view(input_im.shape[0], 3, input_im.shape[2], input_im.shape[3])

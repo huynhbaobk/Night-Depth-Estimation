@@ -22,7 +22,7 @@ from .utils import *
 from SCI.model import *
 from transforms import EqualizeHist
 
-LOG_STEP = 200
+LOG_STEP = 150
 
 def build_disp_net(option, check_point_path):
     # create model
@@ -103,14 +103,14 @@ class RNWModel(LightningModule):
             return self.G(inputs)
         else:
             self.S.eval()
-            # sci_gray = inputs[("color_gray", 0, 0)][0].unsqueeze(0)
+            sci_gray = inputs[("color_gray", 0, 0)][0].unsqueeze(0)
             sci_color = inputs[("color", 0, 0)][0].unsqueeze(0)                    
-            # illu_list, _, _, _, _ = self.S(sci_gray)
-            illu_list, _, _, _, _ = self.S(sci_color)
-            # illu = illu_list[0][0][0]
-            illu = illu_list[0][0]
+            illu_list, _, _, _, _ = self.S(sci_gray)
+            # illu_list, _, _, _, _ = self.S(sci_color)
+            illu = illu_list[0][0][0]
+            # illu = illu_list[0][0]
 
-            # illu = torch.stack([illu, illu, illu])
+            illu = torch.stack([illu, illu, illu])
 
             illu = illu.unsqueeze(0)
             r = sci_color / illu
@@ -189,7 +189,7 @@ class RNWModel(LightningModule):
         if int(self.step%LOG_STEP) == 0:
             # log input images
             for frame_id in self.opt.frame_ids[:1]:
-                color = night_inputs[("color", frame_id, 0)]
+                color = night_inputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
                 logger.add_images(f"input_color_frame_{frame_id}", color, self.step)
 
         
@@ -224,12 +224,12 @@ class RNWModel(LightningModule):
 
             # log input images
             for frame_id in self.opt.frame_ids[:1]:
-                color_aug = night_inputs[("color_aug", frame_id, 0)]
+                color_aug = night_inputs[("color_aug", frame_id, 0)][:, [2, 1, 0], :, :]
                 logger.add_images(f"input_color_aug_frame_{frame_id}", color_aug, self.step)
 
             # log output images
             for frame_id in self.opt.frame_ids[1:2]:
-                color_pred = outputs[("color", frame_id, 0)]
+                color_pred = outputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
                 logger.add_images(f"output_color_frame_{frame_id}", color_pred, self.step)
 
             # log depth
@@ -278,18 +278,20 @@ class RNWModel(LightningModule):
         with torch.no_grad():
             test_input = batch_data
             self.S.eval()
-            # sci_gray = test_input[("color_gray", 0, 0)]
+            sci_gray = test_input[("color_gray", 0, 0)]
             sci_color = test_input[("color", 0, 0)]
             gt = test_input[("gt", 0, 0)][0][0]
             gh, gw = gt.shape
             b, c, rh, rw = sci_color.shape                   
             sf = float(gh / rh)
 
-            # illu_list, _, _, _, i_k = self.S(sci_gray)
-            illu_list, _, _, _, i_k = self.S(sci_color)
+            illu_list, _, _, _, i_k = self.S(sci_gray)
+            # illu_list, _, _, _, i_k = self.S(sci_color)
 
-            illu = illu_list[0][0]
-            # illu = torch.stack([illu, illu, illu])
+            # illu = illu_list[0][0]
+            illu = illu_list[0][0][0]
+
+            illu = torch.stack([illu, illu, illu])
             illu = illu.unsqueeze(0)
             r = sci_color / illu
             r = torch.clamp(r, 0, 1)
@@ -380,16 +382,16 @@ class RNWModel(LightningModule):
         for scale in self.opt.scales:
 
             for frame_id in self.opt.frame_ids:
-                # sci_gray = inputs[("color_gray", frame_id, scale)]
+                sci_gray = inputs[("color_gray", frame_id, scale)]
                 sci_color = inputs[("color", frame_id, scale)]
-                #loss, illu_list, i_k = self.S._loss(sci_gray, frame_id) #todo: index 0 loss, index 0, -1, 1 img
-                loss, illu_list, i_k = self.S._loss(sci_color, frame_id) #todo: index 0 loss, index 0, -1, 1 img
+                loss, illu_list, i_k = self.S._loss(sci_gray, frame_id) #todo: index 0 loss, index 0, -1, 1 img
+                # loss, illu_list, i_k = self.S._loss(sci_color, frame_id) #todo: index 0 loss, index 0, -1, 1 img
 
                 nn.utils.clip_grad_norm_(self.S.parameters(), 5)
                 if frame_id == 0:
                     loss_dict[("sci_loss", 0, scale)] = loss / len(self.opt.scales)
                 
-                ### get last illu stage
+                ### get first illu stage
                 illu = illu_list[0]
                 
                 if scale == 0 and frame_id == 0:
@@ -398,9 +400,9 @@ class RNWModel(LightningModule):
                         illu_mask, k = self.auto_illu_mask(i_k)
                         inputs[("scale_k", 0, 0)] = k.detach()
                         inputs[("light_mask", frame_id, scale)] = illu_mask.detach()
-                    # inputs[("gray_aug", frame_id, scale)] = (sci_gray / illu).clamp(max=1, min=0)
+                    inputs[("gray_aug", frame_id, scale)] = (sci_gray / illu).clamp(max=1, min=0)
                 
-                # illu = torch.cat((illu, illu, illu), dim=1)
+                illu = torch.cat((illu, illu, illu), dim=1)
                 r = sci_color / illu
                 r = torch.clamp(r, 0, 1)
                 inputs[("color_aug", frame_id, scale)] = r  
