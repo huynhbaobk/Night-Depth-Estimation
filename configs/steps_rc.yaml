@@ -24,7 +24,7 @@ dataset:
         root_dir: "night"
     master: "night"
     down_scale: True
-    num_out_scales: 3
+    num_out_scales: 4
     equ_limit: 0.009
     gen_equ: True
     shuffle: True
@@ -45,7 +45,7 @@ model:
   imgs_per_gpu: *b
   height: *h
   width: *w
-  scales: [0, 1, 2]
+  scales: [0, 1, 2, 3]
   min_depth: 0.1
   max_depth: 100.0
 
@@ -60,7 +60,7 @@ model:
   use_illu_mask: True
   use_hist_mask: False
   
-  illu_max: 0.9
+  illu_max: 0.1
   illu_min: 0.1
   p: 5
   q: 5
@@ -70,5 +70,5 @@ model:
 
   use_position_map: True
   S_weight: 0.1
-  G_weight: 2.5e-4
-  D_weight: 2.5e-4
+  G_weight: 4.0e-4
+  D_weight: 4.0e-4

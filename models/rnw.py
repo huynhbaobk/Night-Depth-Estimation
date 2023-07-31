@@ -22,7 +22,7 @@ from .utils import *
 from SCI.model import *
 from transforms import EqualizeHist
 
-LOG_STEP = 150
+LOG_STEP = 200
 
 def build_disp_net(option, check_point_path):
     # create model

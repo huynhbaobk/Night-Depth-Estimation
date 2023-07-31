@@ -15,7 +15,7 @@ dataset:
     robotcar:
       root_dir: "day"
       down_scale: True
-      num_out_scales: 3
+      num_out_scales: 4
       gen_equ: True
       equ_limit: 0.008
       resize: False
@@ -32,7 +32,7 @@ model:
   imgs_per_gpu: *b
   height: *h
   width: *w
-  scales: [0, 1, 2]
+  scales: [0, 1, 2, 3]
   min_depth: 0.1
   max_depth: 100.0
 
@@ -42,3 +42,5 @@ model:
   disp_norm: True
 
   disparity_smoothness: 1.0e-3
+
+  

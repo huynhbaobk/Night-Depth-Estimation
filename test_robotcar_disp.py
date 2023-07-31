@@ -77,7 +77,6 @@ if __name__ == '__main__':
     with torch.no_grad():
         # predict
         for idx, item in enumerate(tqdm(test_items)):
-            print(item)
             # path
             #RNW
             # path = os.path.join(root_dir, 'test_rnw/', '{}.png'.format(item))
@@ -112,7 +111,7 @@ if __name__ == '__main__':
                                                 '{}_depth.png'.format("%05d" %idx))
                 # color_fn = os.path.join("vis/rc", '{}_rgb.png'.format("%05d" %idx))
                 # save_disp(rgb, scaled_disp, out_fn, color_fn, max_p=95, dpi=256)
-                save_disp(rgb[:, :, ::-1], scaled_disp, out_fn, disp_cmap='turbo', max_p=95, dpi=256)
+                save_disp(rgb[:, :, ::-1], scaled_disp, out_fn, disp_cmap='turbo', max_p=95, dpi=512)
 
     # stack
     predictions = np.stack(predictions, axis=0)
