@@ -135,7 +135,7 @@ def evaluate():
         error = compute_metrics(pred_vals, gt_vals)
 
         abs_rel_map[abs_rel_map < 0.23] = 0
-        error_img = draw_scatter_image(img, abs_rel_map)
+        error_img = draw_scatter_image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), abs_rel_map)
 
         out_fn = os.path.join("/media/aiteam/DataAI/STEPS/vis/error_map_night", '{}_error.png'.format("%05d" %i))
         cv2.imwrite(out_fn, error_img)

@@ -72,6 +72,13 @@ def disp_to_depth(disp, min_depth, max_depth):
     depth = 1 / scaled_disp
     return scaled_disp, depth
 
+def depth_to_disp(depth, min_depth, max_depth):
+    min_disp = 1 / max_depth  # 0.01
+    max_disp = 1 / min_depth  # 10
+    scaled_depth = 1 / depth
+    disp = (scaled_depth - min_disp) / (max_disp - min_disp)
+    return disp
+
 
 def robust_l1(pred, target):
     eps = 1e-3

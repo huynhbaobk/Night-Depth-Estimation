@@ -10,6 +10,8 @@ from .utils import *
 from .registry import MODELS
 
 
+LOG_STEP = 200
+
 @MODELS.register_module(name='mono2')
 class Mono2Model(LightningModule):
     """
@@ -32,6 +34,9 @@ class Mono2Model(LightningModule):
         return self.net(inputs)
 
     def training_step(self, batch_data, batch_idx):
+        # tensorboard logger
+        logger = self.logger.experiment
+
         # outputs
         outputs = self.net(batch_data)
 
@@ -40,7 +45,25 @@ class Mono2Model(LightningModule):
         disp_loss = sum(disp_loss_dict.values())
 
         # log
-        self.log('train/loss', disp_loss, logger=True, on_epoch=True, on_step=False)
+        # self.log('train/loss', disp_loss, logger=True, on_epoch=True, on_step=False)
+
+
+        if int(self.global_step%LOG_STEP) == 0:
+            logger.add_scalar('train/loss', disp_loss, self.global_step)
+
+            # log input images
+            for frame_id in self.opt.frame_ids[:1]:
+                color = batch_data[("color_equ", frame_id, 0)][:, [2, 1, 0], :, :] if self.opt.use_equ else batch_data[("color_aug", frame_id, 0)][:, [2, 1, 0], :, :]
+                logger.add_images(f"input_color_frame_{frame_id}", color, self.global_step)
+
+            # # log output images
+            # for frame_id in self.opt.frame_ids[1:2]:
+            #     color_pred = outputs[("color", frame_id, 0)]
+            #     logger.add_images(f"output_color_frame_{frame_id}", color_pred, self.global_step)
+
+            # log depth
+            disp = outputs[("disp", 0, 0)]
+            logger.add_images(f"output_dis_0", disp, self.global_step)
 
         # return
         return disp_loss

@@ -13,10 +13,10 @@ from .common import ROBOTCAR_ROOT
 # rgb extension name
 _RGB_EXT = '.png'
 #RNW
-# # crop size
+# crop size
 # _CROP_SIZE = (1152, 640)
 # # half size
-# _HALF_SIZE = (576, 320)
+# # _HALF_SIZE = (576, 320)
 # _HALF_SIZE = (288, 160)
 
 #ADDS
@@ -24,6 +24,7 @@ _RGB_EXT = '.png'
 _CROP_SIZE = (1280, 640)
 # half size
 _HALF_SIZE = (512, 256)
+#_HALF_SIZE = (256, 128)
 
 # limit of equ
 _EQU_LIMIT = 0.008
@@ -155,7 +156,7 @@ class RobotCarSequence(Dataset):
         # Note: the numpy ndarray and tensor share the same memory!!!
         src_K = torch.from_numpy(src_K)
         # transform
-        # equ_hist = EqualizeHist(src_colors[0], limit=self._equ_limit)
+        equ_hist = EqualizeHist(src_colors[0], limit=self._equ_limit)
         # process
         for s in range(num_scales):
             # get size
@@ -187,7 +188,7 @@ class RobotCarSequence(Dataset):
                 out['color_aug', fi, s] = color
                 out['color_gray', fi, s] = color_gray
                 # if self._gen_equ:
-                #     out['color_equ', fi, s] = equ_color
+                    # out['color_equ', fi, s] = equ_color
         return out
 
     def make_sequence(self, chunks: (list, tuple)):

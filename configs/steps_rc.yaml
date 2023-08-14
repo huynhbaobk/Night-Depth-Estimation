@@ -1,7 +1,7 @@
 
 total_epochs: 20
-imgs_per_gpu: &b 2
-workers_per_gpu: 4
+imgs_per_gpu: &b 1
+workers_per_gpu: 6
 checkpoint_epoch_interval: 2
 
 data_link: None
@@ -13,6 +13,8 @@ dataset:
   # height: &h 320
   # width: &w 288
   # height: &h 160
+  #width: &w 256
+  #height: &h 128
   width: &w 512
   height: &h 256
 
@@ -61,7 +63,7 @@ model:
   use_hist_mask: False
   
   illu_max: 0.1
-  illu_min: 0.1
+  illu_min: 0.05
   p: 5
   q: 5
   equ_limit: 0.004
@@ -70,5 +72,5 @@ model:
 
   use_position_map: True
   S_weight: 0.1
-  G_weight: 4.0e-4
-  D_weight: 4.0e-4
+  G_weight: 2.5e-4
+  D_weight: 2.5e-4

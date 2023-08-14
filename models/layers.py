@@ -61,7 +61,7 @@ class Project(nn.Module):
         pix_coords[..., 0] /= self.width - 1
         pix_coords[..., 1] /= self.height - 1
         pix_coords = (pix_coords - 0.5) * 2
-        return pix_coords
+        return pix_coords, cam_points[:, 2, :].unsqueeze(1)
 
 
 class SSIM(nn.Module):

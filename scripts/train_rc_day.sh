@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+CUDA_VISIBLE_DEVICES=0 \
 python3 train.py \
---config mono2_rc \
---gpus 8 \
+--config mono2_rc_day \
+--gpus 1 \

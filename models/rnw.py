@@ -22,7 +22,7 @@ from .utils import *
 from SCI.model import *
 from transforms import EqualizeHist
 
-LOG_STEP = 200
+LOG_STEP = 100
 
 def build_disp_net(option, check_point_path):
     # create model
@@ -67,6 +67,7 @@ class RNWModel(LightningModule):
         self.G = DispNet(self.opt)
         in_chs_D = 3 if self.opt.use_position_map else 1
         self.D = NLayerDiscriminator(in_chs_D, n_layers=3)
+        # self.global_D = GlobalDiscriminator(in_chs_D, self.opt.width, self.opt.height)
 
         # init SCI_Model
         self.S.enhance.in_conv.apply(self.S.weights_init)
@@ -482,16 +483,53 @@ class RNWModel(LightningModule):
         return inputs[("color_aug", frame_id, scale)] if self.opt.use_equ else inputs[("color", frame_id, scale)]
 
     def generate_images_pred(self, inputs, outputs, scale):
+        logger = self.logger.experiment
+
         disp = outputs[("disp", 0, scale)]
         disp = F.interpolate(disp, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
         _, depth = disp_to_depth(disp, self.opt.min_depth, self.opt.max_depth)
         for i, frame_id in enumerate(self.opt.frame_ids[1:]):
             T = outputs[("cam_T_cam", 0, frame_id)]
             cam_points = self.backproject(depth, inputs["inv_K", 0])
-            pix_coords = self.project_3d(cam_points, inputs["K", 0], T)  # [b,h,w,2]
+            pix_coords, computed_src_depth = self.project_3d(cam_points, inputs["K", 0], T)  # [b,h,w,2]
+            if int(self.step%LOG_STEP) == 0:
+                logger.add_images(f"computed_src_depth_{frame_id}", depth_to_disp(computed_src_depth.view(computed_src_depth.shape[0], computed_src_depth.shape[1], self.opt.height, self.opt.width), self.opt.min_depth, self.opt.max_depth), self.step)
+
             src_img = self.get_color_input(inputs, frame_id, 0)
             outputs[("color", frame_id, scale)] = F.grid_sample(src_img, pix_coords, padding_mode="border",
                                                                 align_corners=False)
+                                                                
+        return outputs
+
+    def generate_images_pred_geo(self, inputs, outputs, scale):
+        logger = self.logger.experiment
+        disp = outputs[("disp", 0, scale)]
+        disp = F.interpolate(disp, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
+        _, depth = disp_to_depth(disp, self.opt.min_depth, self.opt.max_depth)
+
+        for i, frame_id in enumerate(self.opt.frame_ids[1:]):
+            T = outputs[("cam_T_cam", 0, frame_id)]
+            cam_points = self.backproject(depth, inputs["inv_K", 0])
+            pix_coords, computed_src_depth = self.project_3d(cam_points, inputs["K", 0], T)  # [b,h,w,2]
+            
+            outputs[("computed_depth", frame_id, scale)] = depth_to_disp(computed_src_depth.view(computed_src_depth.shape[0], computed_src_depth.shape[1], self.opt.height, self.opt.width), self.opt.min_depth, self.opt.max_depth)
+            if int(self.step%LOG_STEP) == 0:
+                logger.add_images(f"computed_src_depth_{frame_id}", outputs[("computed_depth", frame_id, 0)], self.step)
+
+            src_img = self.get_color_input(inputs, frame_id, 0)
+            outputs[("color", frame_id, scale)] = F.grid_sample(src_img, pix_coords, padding_mode="border",
+                                                                align_corners=False)
+
+            valid_points = pix_coords.abs().max(dim=-1)[0] <= 1
+            valid_mask = valid_points.unsqueeze(1).float()
+            outputs[("valid_mask", frame_id, scale)] = valid_mask
+
+            trg_depth = outputs[("disp", frame_id, scale)]
+            outputs[("proj_depth", frame_id, scale)] = F.grid_sample(trg_depth, pix_coords, padding_mode="zeros",
+                                                                align_corners=False)
+            if int(self.step%LOG_STEP) == 0:
+                logger.add_images(f"proj_depth{frame_id}", outputs[("proj_depth", frame_id, 0)], self.step)
+
         return outputs
 
     def compute_reprojection_loss(self, pred, target):
@@ -509,6 +547,9 @@ class RNWModel(LightningModule):
         static_mask = (diff > mask_threshold).float()
         # return
         return static_mask
+
+    def get_geo_diff_depth(self, computed_depth, projected_depth):
+        return ((computed_depth-projected_depth).abs() / (computed_depth + projected_depth)).clamp(0,1)
     
     def compute_disp_losses(self, inputs, outputs):
         logger = self.logger.experiment
@@ -526,11 +567,13 @@ class RNWModel(LightningModule):
             disp = outputs[("disp", 0, scale)]
             target = self.get_color_input(inputs, 0, 0)
             reprojection_losses = []
+            geo_consistency_losses = []
 
             """
             reconstruction
             """
-            outputs = self.generate_images_pred(inputs, outputs, scale)
+            # outputs = self.generate_images_pred(inputs, outputs, scale)
+            outputs = self.generate_images_pred_geo(inputs, outputs, scale)
 
             """
             automask
@@ -538,6 +581,7 @@ class RNWModel(LightningModule):
             use_static_mask = self.opt.use_static_mask
             use_illu_mask = self.opt.use_illu_mask
             use_hist_mask = self.opt.use_hist_mask
+            use_geo_mask = True
 
             # update ego diff
             if use_static_mask:
@@ -579,7 +623,54 @@ class RNWModel(LightningModule):
                         if int(self.step%LOG_STEP) == 0:
                             logger.add_images(f"illu_mask_frame_-1", inputs[("light_mask", 0, 0)], self.step)
 
+                    if use_geo_mask:
+                        computed_depth = outputs[("computed_depth", frame_id, scale)]
+                        projected_depth = outputs[("proj_depth", frame_id, scale)]
+
+                        valid_mask = outputs[("valid_mask", frame_id, scale)]
+                        if int(self.step%LOG_STEP) == 0:
+                            logger.add_images(f"valid_mask_{frame_id}", outputs[("valid_mask", frame_id, 0)], self.step)
+
+                        # print("computed_depth ", computed_depth)
+                        # print("*"*30)
+                        # print("projected_depth ", projected_depth)
+
+                        diff_depth = self.get_geo_diff_depth(computed_depth, projected_depth)
+                        # print(diff_depth)
+                        if int(self.step%LOG_STEP) == 0 and scale==0:
+                            logger.add_images(f"diff_depth_{frame_id}", diff_depth, self.step)
+
+                        geo_mask = (1 - diff_depth)
+                        # print("*"*30)
+                        # print(geo_mask)
+
+                        if int(self.step%LOG_STEP) == 0 and scale==0:
+                            # print("computed_depth ", computed_depth)
+                            # print("*"*30)
+                            # print("projected_depth ", projected_depth)
+                            # print("="*30)
+                            # print(diff_depth.shape)
+
+                            logger.add_images(f"geo_mask_{frame_id}",  geo_mask, self.step)
+
+                        diff_depth *= valid_mask
+
+                        identity_reprojection_loss *= geo_mask
+                        identity_reprojection_loss *= valid_mask
+
+                if use_geo_mask:
+                    geo_consistency_losses.append(diff_depth)
+
                 reprojection_losses.append(identity_reprojection_loss)
+
+            """
+            geometry consistency loss
+            """
+            if use_geo_mask:
+                geometry_consistency_loss = torch.cat(geo_consistency_losses, 1)
+                geometry_consistency_loss = torch.sum(geometry_consistency_loss, dim=1)
+                loss_dict[('geometry_consistency_loss', scale)]  = 0.1 * geometry_consistency_loss.mean() / len(self.opt.scales)
+                # print(loss_dict[('geometry_consistency_loss', scale)])
 
             """
             minimum reconstruction loss

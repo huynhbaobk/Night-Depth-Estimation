@@ -72,6 +72,7 @@ def evaluate():
         # get item
         pred, gt = pred_depth[i], gt_depth[i]
         gt = crop(gt, inplace=False)
+
         mask = (gt > args.min_depth) & (gt < args.max_depth)
         # resize
         gt_h, gt_w  = gt.shape
@@ -84,6 +85,7 @@ def evaluate():
         scale = np.median(gt_vals) / np.median(pred_vals)
         pred_vals *= scale
         pred_vals = np.clip(pred_vals, args.min_depth, args.max_depth)
+
         # compute error
         error = compute_metrics(pred_vals, gt_vals)
         # add

@@ -18,9 +18,9 @@ from utils import read_list_from_file, save_color_disp, save_disp
 
 # crop size
 #RNW
-# _CROP_SIZE = (1152, 640)
+_CROP_SIZE = (1152, 640)
 #ADDS
-_CROP_SIZE = (1280, 640)
+# _CROP_SIZE = (1280, 640)
 # output dir
 _OUT_DIR = './evaluation/rc_result'
 
@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('config', type=str)
     parser.add_argument('checkpoint', type=str)
     parser.add_argument('--test', type=int, default=1)
-    parser.add_argument('--vis', default=0)
+    parser.add_argument('--vis',  type=int, default=0)
     return parser.parse_args()
 
 
@@ -102,6 +102,7 @@ if __name__ == '__main__':
                         ('color_gray', 0, 0): t_gray})
             disp = outputs[("disp", 0, 0)]
             scaled_disp, depth = disp_to_depth(disp, 0.1, 100)
+
             depth = depth.cpu()[0, 0, :, :].numpy()
             # append
             predictions.append(depth)
