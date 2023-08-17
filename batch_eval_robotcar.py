@@ -10,7 +10,7 @@ _DS_ROOT = 'night'
 _CONFIG = 'steps_rc'
 
 # eval check points
-_EVAL_CHECK_POINTS = [11, 13, 15, 17, 19]
+_EVAL_CHECK_POINTS = [3]
 _VIS = 0
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ from .utils import transformation_from_parameters
 class DispNet(nn.Module):
     def __init__(self, opt):
         super(DispNet, self).__init__()
-
+        
         self.opt = opt
 
         # networks
@@ -24,9 +24,11 @@ class DispNet(nn.Module):
     def forward(self, inputs):
         outputs = self.DepthDecoder(self.DepthEncoder(inputs['color_aug', 0, 0]))
 
-        outputs.update(self.DepthDecoder(self.DepthEncoder(inputs['color_aug', -1, 0]), frame_idx=-1))
-        outputs.update(self.DepthDecoder(self.DepthEncoder(inputs['color_aug', 1, 0]), frame_idx=1))
-        
+        if self.opt.name == 'rnw':
+            if self.training and self.opt.use_geo_mask:
+                for f_i in self.opt.frame_ids[1:]:
+                    outputs.update(self.DepthDecoder(self.DepthEncoder(inputs['color_aug', f_i, 0]), frame_idx=f_i))
+                            
         if self.training:
             outputs.update(self.predict_poses(inputs))
         return outputs

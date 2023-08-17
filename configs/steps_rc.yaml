@@ -1,7 +1,7 @@
 
 total_epochs: 20
-imgs_per_gpu: &b 1
-workers_per_gpu: 6
+imgs_per_gpu: &b 2
+workers_per_gpu: 4
 checkpoint_epoch_interval: 2
 
 data_link: None
@@ -30,12 +30,15 @@ dataset:
     equ_limit: 0.009
     gen_equ: True
     shuffle: True
+    day_load_depth: &dl True
+
 
 model:
   name: "rnw"
 
   day_config: "mono2_rc_day"
   day_check_point: "checkpoints/mono2_rc_day/checkpoint_epoch=5.ckpt"
+  day_load_depth: *dl
 
   depth_num_layers: 50
   pose_num_layers: 18
@@ -61,6 +64,7 @@ model:
   use_static_mask: True
   use_illu_mask: True
   use_hist_mask: False
+  use_geo_mask: True
   
   illu_max: 0.1
   illu_min: 0.05

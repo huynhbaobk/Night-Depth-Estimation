@@ -88,10 +88,11 @@ class RNWModel(LightningModule):
             self.register_buffer('width_map', width_map, persistent=False)
 
         # build day disp net
-        self.day_dispnet = build_disp_net(
-            Config.fromfile(osp.join('configs/', f'{self.opt.day_config}.yaml')),
-            self.opt.day_check_point
-        )
+        if not self.opt.day_load_depth:
+            self.day_dispnet = build_disp_net(
+                Config.fromfile(osp.join('configs/', f'{self.opt.day_config}.yaml')),
+                self.opt.day_check_point
+            )
 
         # link to dataset
         self.data_link = opt.data_link
@@ -114,18 +115,25 @@ class RNWModel(LightningModule):
             illu = torch.stack([illu, illu, illu])
 
             illu = illu.unsqueeze(0)
+
             r = sci_color / illu
             r = torch.clamp(r, 0, 1)
             inputs[("color_aug", 0, 0)] = r
             return self.G(inputs)
 
     def generate_gan_outputs(self, day_inputs, outputs):
+        logger = self.logger.experiment
         # (n, 1, h, w)
         night_disp = outputs['disp', 0, 0]
-        # if self.current_epoch <= 15:
-        with torch.no_grad():
-            day_disp = self.day_dispnet(day_inputs)['disp', 0, 0]
-            day_disp = F.interpolate(day_disp, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
+        if self.opt.day_load_depth:
+            day_disp = day_inputs['disp', 0, 0]
+        else:
+            with torch.no_grad():
+                day_disp = self.day_dispnet(day_inputs)['disp', 0, 0]
+                day_disp = F.interpolate(day_disp, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
+        if int(self.step%LOG_STEP) == 0:
+            logger.add_images(f"day_disp_0", day_disp, self.step)
+
         # remove scale
         night_disp = night_disp / night_disp.mean(dim=3, keepdim=True).mean(dim=2, keepdim=True)
         day_disp = day_disp / day_disp.mean(dim=3, keepdim=True).mean(dim=2, keepdim=True)
@@ -137,7 +145,6 @@ class RNWModel(LightningModule):
         else:
             height_map = None
             width_map = None
-        # return
         return day_disp, night_disp, height_map, width_map
 
     def compute_G_loss(self, night_disp, height_map, width_map):
@@ -182,16 +189,15 @@ class RNWModel(LightningModule):
         # tensorboard logger
         logger = self.logger.experiment
 
-        # get input data
+        # # get input data
         day_inputs = batch_data['day']
         night_inputs = batch_data['night']
 
-
-        if int(self.step%LOG_STEP) == 0:
-            # log input images
-            for frame_id in self.opt.frame_ids[:1]:
-                color = night_inputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
-                logger.add_images(f"input_color_frame_{frame_id}", color, self.step)
+        # if int(self.step%LOG_STEP) == 0:
+        #     # log input images
+        #     for frame_id in self.opt.frame_ids[:1]:
+        #         color = night_inputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
+        #         logger.add_images(f"input_color_frame_{frame_id}", color, self.step)
 
         
         # TODO: get relight img
@@ -208,7 +214,7 @@ class RNWModel(LightningModule):
         
         # generate outputs for gan
         day_disp, night_disp, height_map, width_map = self.generate_gan_outputs(day_inputs, outputs)
-        
+        # self.generate_gan_outputs(day_inputs, outputs)
         #
         # optimize G
         #
@@ -222,6 +228,16 @@ class RNWModel(LightningModule):
             logger.add_scalar('train/G_loss', G_loss, self.step)
             logger.add_scalar('train/disp_loss', disp_loss, self.step)
             logger.add_scalar('train/S_loss', S_loss, self.step)
+
+            min_reconstruct_loss = disp_loss_dict[('min_reconstruct_loss', 0)]
+            logger.add_scalar('train/min_reconstruct_loss', min_reconstruct_loss, self.step)
+
+            smooth_loss = disp_loss_dict[('smooth_loss', 0)]
+            logger.add_scalar('train/smooth_loss', smooth_loss, self.step)
+
+            if self.opt.use_geo_mask:
+                geo_loss = disp_loss_dict[('geometry_consistency_loss', 0)]
+                logger.add_scalar('train/geometric_loss', geo_loss, self.step)
 
             # log input images
             for frame_id in self.opt.frame_ids[:1]:
@@ -492,8 +508,8 @@ class RNWModel(LightningModule):
             T = outputs[("cam_T_cam", 0, frame_id)]
             cam_points = self.backproject(depth, inputs["inv_K", 0])
             pix_coords, computed_src_depth = self.project_3d(cam_points, inputs["K", 0], T)  # [b,h,w,2]
-            if int(self.step%LOG_STEP) == 0:
-                logger.add_images(f"computed_src_depth_{frame_id}", depth_to_disp(computed_src_depth.view(computed_src_depth.shape[0], computed_src_depth.shape[1], self.opt.height, self.opt.width), self.opt.min_depth, self.opt.max_depth), self.step)
+            # if int(self.step%LOG_STEP) == 0:
+            #     logger.add_images(f"computed_src_depth_{frame_id}", depth_to_disp(computed_src_depth.view(computed_src_depth.shape[0], computed_src_depth.shape[1], self.opt.height, self.opt.width), self.opt.min_depth, self.opt.max_depth), self.step)
 
             src_img = self.get_color_input(inputs, frame_id, 0)
             outputs[("color", frame_id, scale)] = F.grid_sample(src_img, pix_coords, padding_mode="border",
@@ -572,8 +588,11 @@ class RNWModel(LightningModule):
             """
             reconstruction
             """
-            # outputs = self.generate_images_pred(inputs, outputs, scale)
-            outputs = self.generate_images_pred_geo(inputs, outputs, scale)
+            if self.opt.use_geo_mask:
+                outputs = self.generate_images_pred_geo(inputs, outputs, scale)
+            else:
+                outputs = self.generate_images_pred(inputs, outputs, scale)
+            
 
             """
             automask
@@ -581,7 +600,7 @@ class RNWModel(LightningModule):
             use_static_mask = self.opt.use_static_mask
             use_illu_mask = self.opt.use_illu_mask
             use_hist_mask = self.opt.use_hist_mask
-            use_geo_mask = True
+            use_geo_mask = self.opt.use_geo_mask
 
             # update ego diff
             if use_static_mask:
@@ -631,26 +650,12 @@ class RNWModel(LightningModule):
                         if int(self.step%LOG_STEP) == 0:
                             logger.add_images(f"valid_mask_{frame_id}", outputs[("valid_mask", frame_id, 0)], self.step)
 
-                        # print("computed_depth ", computed_depth)
-                        # print("*"*30)
-                        # print("projected_depth ", projected_depth)
-
                         diff_depth = self.get_geo_diff_depth(computed_depth, projected_depth)
-                        # print(diff_depth)
                         if int(self.step%LOG_STEP) == 0 and scale==0:
                             logger.add_images(f"diff_depth_{frame_id}", diff_depth, self.step)
 
                         geo_mask = (1 - diff_depth)
-                        # print("*"*30)
-                        # print(geo_mask)
-
                         if int(self.step%LOG_STEP) == 0 and scale==0:
-                            # print("computed_depth ", computed_depth)
-                            # print("*"*30)
-                            # print("projected_depth ", projected_depth)
-                            # print("="*30)
-                            # print(diff_depth.shape)
-
                             logger.add_images(f"geo_mask_{frame_id}",  geo_mask, self.step)
 
                         diff_depth *= valid_mask

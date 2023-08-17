@@ -9,6 +9,8 @@ from utils import read_list_from_file
 from transforms import ResizeWithIntrinsic, RandomHorizontalFlipWithIntrinsic, CenterCropWithIntrinsic, EqualizeHist
 from torchvision.transforms import ToTensor
 from .common import ROBOTCAR_ROOT
+import concurrent.futures
+import random
 
 # rgb extension name
 _RGB_EXT = '.png'
@@ -65,7 +67,7 @@ class RobotCarSequence(Dataset):
     """
 
     def __init__(self, root_dir, frame_ids: (list, tuple), augment=True, down_scale=False, num_out_scales=5,
-                 gen_equ=False, equ_limit=_EQU_LIMIT, resize=False):
+                 gen_equ=False, equ_limit=_EQU_LIMIT, day_load_depth=False, resize=False):
         """
         Initialize
         :param root_dir: root directory
@@ -80,13 +82,14 @@ class RobotCarSequence(Dataset):
         # assert
         assert len(frame_ids) % 2 == 1
         # set parameters
-        # self._root_dir = ROBOTCAR_ROOT[root_dir] if root_dir in ROBOTCAR_ROOT else root_dir
+        self._root_dir = root_dir
         self._frame_ids = frame_ids
         self._need_augment = augment
         self._num_out_scales = num_out_scales
         self._gen_equ = gen_equ
         self._equ_limit = equ_limit if equ_limit is not None else _EQU_LIMIT
         self._down_scale = down_scale and (not resize)
+        self._day_load_depth = day_load_depth
         if self._down_scale:
             self._width, self._height = _HALF_SIZE
         else:
@@ -111,7 +114,8 @@ class RobotCarSequence(Dataset):
         # transforms
         self._to_tensor = ToTensor()
         if self._need_augment:
-            self._flip = RandomHorizontalFlipWithIntrinsic(0.5)
+            self.random_aug = 0.5
+            self._flip = RandomHorizontalFlipWithIntrinsic(self.random_aug) #0.5
         # crop
         if self._need_resize:
             self._crop = CenterCropWithIntrinsic(self._width, self._width // 2)
@@ -156,7 +160,7 @@ class RobotCarSequence(Dataset):
         # Note: the numpy ndarray and tensor share the same memory!!!
         src_K = torch.from_numpy(src_K)
         # transform
-        equ_hist = EqualizeHist(src_colors[0], limit=self._equ_limit)
+        # equ_hist = EqualizeHist(src_colors[0], limit=self._equ_limit)
         # process
         for s in range(num_scales):
             # get size
@@ -214,38 +218,66 @@ class RobotCarSequence(Dataset):
         # return
         return items
 
+    def load_image_concurrent(self, image_paths):
+        def load_image(image_path):
+            return cv2.imread(image_path + '.png')
+        
+        loaded_images = []
+        # Use parallel processing to load images
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(load_image, path) for path in image_paths]
+
+            # Iterate over futures as they complete
+            for future, image_path in zip(concurrent.futures.as_completed(futures), image_paths):
+                image = future.result()
+                if image is not None:
+                    loaded_images.append(image)
+                    
+        return loaded_images
+
     def __getitem__(self, idx):
         """
         Return item according to given index
         :param idx: index
         :return:
         """
+        result = {}
         # get item
         item = self._sequence_items[idx]
-        # read data
-        # rgbs = [cv2.imread(os.path.join(self._root_dir, 'rgb/', '{}.png'.format(p))) for p in item]
-        rgbs = [cv2.imread(p + '.png') for p in item]
-        # rgbs = [cv2.imread(p + '.png')[...,::-1].copy() for p in item]
+        if not self._day_load_depth or (self._day_load_depth and self._root_dir == 'night'):
+            # read data
+            # rgbs = [cv2.imread(p + '.png') for p in item]
+            rgbs = self.load_image_concurrent(item)
 
-        for rgb, path in zip(rgbs, item):
-            assert rgb is not None, f'{path} reads None.'
-        intrinsic = self._k.copy()
-        # crop
-        intrinsic, rgbs = self._crop(intrinsic, *rgbs, inplace=False, unpack=False)
-        # rescale
-        if self._resize is not None:
-            intrinsic, rgbs = self._resize(intrinsic, *rgbs)
-        # augment
-        if self._need_augment:
-            intrinsic, rgbs = self._flip(intrinsic, *rgbs, unpack=False)
-        # get colors
-        colors = {}
-        # color
-        for i, fi in enumerate(self._frame_ids):
-            colors[fi] = rgbs[i]
-        # pack
-        result = self.pack_data(colors, intrinsic, self._num_out_scales)
-        # return
+            for rgb, path in zip(rgbs, item):
+                assert rgb is not None, f'{path} reads None.'
+            intrinsic = self._k.copy()
+            # crop
+            intrinsic, rgbs = self._crop(intrinsic, *rgbs, inplace=False, unpack=False)
+            # rescale
+            if self._resize is not None:
+                intrinsic, rgbs = self._resize(intrinsic, *rgbs)
+            # augment
+            if self._need_augment:
+                intrinsic, rgbs, is_random = self._flip(intrinsic, *rgbs, unpack=False)
+                # if self._root_dir == 'day' and is_random:
+                #     item[0] = item[0] + "_augment"
+            # get colors
+            colors = {}
+            # color
+            for i, fi in enumerate(self._frame_ids):
+                colors[fi] = rgbs[i]
+            # pack
+            result = self.pack_data(colors, intrinsic, self._num_out_scales)
+            # if self._root_dir == 'day':
+            #     result['file_path'] = item[0]
+
+        elif (self._day_load_depth and self._root_dir == 'day'):
+            if random.random() < self.random_aug:
+                item[0] = item[0] + "_augment"
+            item[0] = item[0].replace("rgb", "depth_rgb") + ".pt"
+            result['disp', 0, 0] = torch.load(item[0])
+
         return result
 
     def __len__(self):

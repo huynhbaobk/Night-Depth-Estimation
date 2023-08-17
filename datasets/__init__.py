@@ -19,7 +19,7 @@ def build_dataset(data_option):
         mrc_opt = data_option['multiple_robotcar']
         dataset = MultipleRobotCar(mrc_opt['subsets'], data_option.frame_ids, mrc_opt['master'], True,
                                    mrc_opt['down_scale'], mrc_opt['num_out_scales'], mrc_opt['gen_equ'],
-                                   mrc_opt['shuffle'], equ_limit=mrc_opt['equ_limit'])
+                                   mrc_opt['shuffle'], equ_limit=mrc_opt['equ_limit'], day_load_depth=mrc_opt['day_load_depth'])
     elif dataset_type == 'nuscenes':
         ns_opt = data_option['nuscenes']
         dataset = nuScenesSequence(ns_opt['weather'], data_option['frame_ids'], True, ns_opt['down_scale'],

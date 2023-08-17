@@ -208,6 +208,7 @@ class RandomHorizontalFlipWithIntrinsic:
         :param imgs: 'channel last' images to be processed
         :param unpack:
         """
+        is_random = False
         # assert
         assert len(imgs) > 0
         # store results
@@ -216,6 +217,7 @@ class RandomHorizontalFlipWithIntrinsic:
         h, w, _ = imgs[0].shape
         # process
         if random.random() < self.p:
+            is_random = True
             for img in imgs:
                 img_results.append(img[:, ::-1].copy())
             intrinsic_result = intrinsic.copy()
@@ -227,7 +229,7 @@ class RandomHorizontalFlipWithIntrinsic:
         if unpack and len(img_results) == 1:
             img_results = img_results[0]
         # return
-        return intrinsic_result, img_results
+        return intrinsic_result, img_results, is_random
 
 
 class CenterCropWithIntrinsic:

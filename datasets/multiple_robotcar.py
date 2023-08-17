@@ -26,10 +26,11 @@ class MultipleRobotCar(Dataset):
         self._orders = {}
         # prepare dataset
         equ_limit = kwargs.get('equ_limit', None)
+        day_load_depth = kwargs.get('day_load_depth', False)
         sets = {}
         for s in subsets:
             sets[s['name']] = RobotCarSequence(s['root_dir'], frame_ids, augment, down_scale, num_out_scales, gen_equ,
-                                               equ_limit=equ_limit)
+                                            equ_limit=equ_limit, day_load_depth=day_load_depth)
         self._subsets = sets
         # compute data length
         self._data_len = {k: len(v) for k, v in sets.items()}
@@ -67,6 +68,7 @@ class MultipleRobotCar(Dataset):
                     item[name] = subset[self._orders[name][sub_idx]]
                 else:
                     item[name] = subset[sub_idx]
+                
         return item
 
     def __len__(self):

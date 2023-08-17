@@ -7,10 +7,10 @@ checkpoint_epoch_interval: 1
 dataset:
     type: "robotcar"
     frame_ids: &f [0, -1, 1]
-    # width: &w 576
-    # height: &h 320
-    width: &w 512
-    height: &h 256
+    width: &w 576
+    height: &h 320
+    # width: &w 512
+    # height: &h 256
 
     robotcar:
       root_dir: "day"
