@@ -15,14 +15,14 @@ import cv2
 from components import freeze_model, unfreeze_model, ImagePool, get_smooth_loss
 from utils import EWMA
 from .disp_net import DispNet
-from .gan import GANLoss, NLayerDiscriminator
+from .gan import GANLoss, NLayerDiscriminator #, GlobalDiscriminator
 from .layers import SSIM, Backproject, Project
 from .registry import MODELS
 from .utils import *
 from SCI.model import *
 from transforms import EqualizeHist
 
-LOG_STEP = 200
+LOG_STEP = 100
 
 def build_disp_net(option, check_point_path):
     # create model
@@ -67,6 +67,7 @@ class RNWModel(LightningModule):
         self.G = DispNet(self.opt)
         in_chs_D = 3 if self.opt.use_position_map else 1
         self.D = NLayerDiscriminator(in_chs_D, n_layers=3)
+        # self.D = GlobalDiscriminator(in_chs_D)
 
         # init SCI_Model
         self.S.enhance.in_conv.apply(self.S.weights_init)
@@ -367,8 +368,8 @@ class RNWModel(LightningModule):
         optim_G = Adam(optim_params)
         optim_D = Adam(self.D.parameters(), lr=self.opt.G_learning_rate)
 
-        sch_G = MultiStepLR(optim_G, milestones=[15], gamma=0.5)
-        sch_D = MultiStepLR(optim_D, milestones=[15], gamma=0.5)
+        sch_G = MultiStepLR(optim_G, milestones=[15], gamma=0.1)
+        sch_D = MultiStepLR(optim_D, milestones=[15], gamma=0.1)
 
         return [optim_G, optim_D], [sch_G, sch_D]
     

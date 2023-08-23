@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('config', type=str)
     parser.add_argument('checkpoint', type=str)
     parser.add_argument('--test', type=int, default=1)
-    parser.add_argument('--vis', default=0)
+    parser.add_argument('--vis',  type=int, default=0)
     return parser.parse_args()
 
 
@@ -103,6 +103,12 @@ if __name__ == '__main__':
             disp = outputs[("disp", 0, 0)]
             scaled_disp, depth = disp_to_depth(disp, 0.1, 100)
             depth = depth.cpu()[0, 0, :, :].numpy()
+
+            # ### Test use gaussian blur for depth 
+            # kernel_size = (3, 5)  # Example kernel size (rows, cols)
+            # sigma_x = 2.0  # Example standard deviation
+            # depth = cv2.GaussianBlur(depth, kernel_size, sigma_x)
+
             # append
             predictions.append(depth)
             if args.vis:
@@ -111,7 +117,7 @@ if __name__ == '__main__':
                                                 '{}_depth.png'.format("%05d" %idx))
                 # color_fn = os.path.join("vis/rc", '{}_rgb.png'.format("%05d" %idx))
                 # save_disp(rgb, scaled_disp, out_fn, color_fn, max_p=95, dpi=256)
-                save_disp(rgb[:, :, ::-1], scaled_disp, out_fn, disp_cmap='turbo', max_p=95, dpi=512)
+                save_disp(rgb[:, :, ::-1], scaled_disp, out_fn, disp_cmap='turbo', max_p=95, dpi=256)
 
     # stack
     predictions = np.stack(predictions, axis=0)

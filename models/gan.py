@@ -174,15 +174,48 @@ class NLayerDiscriminator(nn.Module):
         sequence += [
             nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult, kernel_size=kw, stride=1, padding=padw, bias=use_bias),
             get_norm_layer(norm_layer, ndf * nf_mult),
-            nn.LeakyReLU(0.2, True)
+            nn.LeakyReLU(0.2, True),
+        ]
+            
+        sequence += [nn.AdaptiveMaxPool2d(1),
+            nn.Flatten(),
+            nn.Linear(ndf * nf_mult, 1)
         ]
         # output 1 channel prediction map
-        sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]
+        # sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]
         self.model = nn.Sequential(*sequence)
 
     def forward(self, x):
         """Standard forward."""
         return self.model(x)
+
+# class GlobalDiscriminator(nn.Module):
+#     def __init__(self, nc=1, ndf=64):
+#         super(GlobalDiscriminator, self).__init__()
+#         self.model = nn.Sequential(
+#             # input is ``(nc) x 64 x 64``
+#             nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
+#             nn.LeakyReLU(0.2, inplace=True),
+#             # state size. ``(ndf) x 32 x 32``
+#             nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+#             nn.InstanceNorm2d(ndf * 2),
+#             nn.LeakyReLU(0.2, inplace=True),
+#             # state size. ``(ndf*2) x 16 x 16``
+#             nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+#             nn.InstanceNorm2d(ndf * 4),
+#             nn.LeakyReLU(0.2, inplace=True),
+#             # state size. ``(ndf*4) x 8 x 8``
+#             nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+#             nn.InstanceNorm2d(ndf * 8),
+#             nn.LeakyReLU(0.2, inplace=True),
+#             # state size. ``(ndf*8) x 4 x 4``
+#             nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+
+#             nn.Linear(256, 1), 
+#             nn.Sigmoid()
+#         )
+#     def forward(self, x):
+#         return self.model(x)
 
 
 class GANLoss(nn.Module):

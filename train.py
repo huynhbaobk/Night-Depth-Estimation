@@ -68,7 +68,7 @@ def main():
                                           save_top_k=-1,
                                           filename='checkpoint_{epoch}',
                                           every_n_epochs=cfg.checkpoint_epoch_interval)
-    trainer = Trainer(accelerator='cuda',
+    trainer = Trainer(accelerator='gpu',
                       default_root_dir=work_dir,
                       gpus=args.gpus,
                       num_nodes=1,
