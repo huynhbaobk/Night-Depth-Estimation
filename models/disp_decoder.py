@@ -57,7 +57,7 @@ class DispDecoder(nn.Module):
         x4 = self.conv4(x4)
         x4 = self.leaky_relu(x4)
         x4 = self.up_conv4(x4)
-        # disp4 = torch.sigmoid(self.disp_conv4(x4))
+        #disp4 = torch.sigmoid(self.disp_conv4(x4))
         # 3
         s3 = self.reduce3(f3)
         x3 = self.conv3(x4)

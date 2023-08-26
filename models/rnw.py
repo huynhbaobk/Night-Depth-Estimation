@@ -14,7 +14,7 @@ import cv2
 
 from components import freeze_model, unfreeze_model, ImagePool, get_smooth_loss
 from utils import EWMA
-from .disp_net import DispNet
+from .disp_net import DispNet, DispAttetionNet
 from .gan import GANLoss, NLayerDiscriminator #, GlobalDiscriminator
 from .layers import SSIM, Backproject, Project
 from .registry import MODELS
@@ -64,9 +64,9 @@ class RNWModel(LightningModule):
 
         # networks
         self.S = Network(stage=3)
-        self.G = DispNet(self.opt)
+        self.G = DispAttetionNet(self.opt)
         in_chs_D = 3 if self.opt.use_position_map else 1
-        self.D = NLayerDiscriminator(in_chs_D, n_layers=3)
+        self.D = NLayerDiscriminator(in_chs_D, n_layers=4)
         # self.D = GlobalDiscriminator(in_chs_D)
 
         # init SCI_Model
@@ -232,6 +232,12 @@ class RNWModel(LightningModule):
             for frame_id in self.opt.frame_ids[1:2]:
                 color_pred = outputs[("color", frame_id, 0)][:, [2, 1, 0], :, :]
                 logger.add_images(f"output_color_frame_{frame_id}", color_pred, self.step)
+
+            # log attention map
+            # print(outputs["attention_map"][0].shape)
+            # print(outputs["attention_map"][0])
+            # print(torch.argmax(outputs["attention_map"][0], dim=1))
+            logger.add_images(f"attention_map", outputs["attention_map"].unsqueeze(1), self.step)
 
             # log depth
             disp = outputs[("disp", 0, 0)]
@@ -597,6 +603,12 @@ class RNWModel(LightningModule):
             reprojection_loss = torch.cat(reprojection_losses, 1)
 
             min_reconstruct_loss, _ = torch.min(reprojection_loss, dim=1)
+
+            # torch.save(target[0].cpu(), f"./vis/error_loss_night/image_{self.step}.pth")
+            # torch.save(min_reconstruct_loss[0].cpu(), f"./vis/error_loss_night/loss_{self.step}.pth")
+            # if self.step > 409:
+            #     stop
+
             b, _, _ = min_reconstruct_loss.shape
             # max_queue = []
             # for i in range(b):

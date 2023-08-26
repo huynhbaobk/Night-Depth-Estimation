@@ -29,11 +29,11 @@ def draw_scatter_image(image, points, cmap="turbo"):
 
     im = image.copy()
     cmap = plt.get_cmap(cmap)
-    rmse_error_colored = cmap(points)
+    error_colored = cmap(points)
 
     # Draw scatter points on the image using the mask
     x, y = np.where(mask_err)
-    color = rmse_error_colored[x, y]
+    color = error_colored[x, y]
 
     for i in range(len(x)):
         color_ = tuple((255*color[i]).astype(int))[:3]
@@ -134,10 +134,10 @@ def evaluate():
         # compute error
         error = compute_metrics(pred_vals, gt_vals)
 
-        abs_rel_map[abs_rel_map < 0.23] = 0
-        error_img = draw_scatter_image(img, abs_rel_map)
+        # abs_rel_map[abs_rel_map > 0.23] = 0
+        error_img = draw_scatter_image(img[:,:,::-1], abs_rel_map)
 
-        out_fn = os.path.join("/media/aiteam/DataAI/STEPS/vis/error_map_night", '{}_error.png'.format("%05d" %i))
+        out_fn = os.path.join("../vis/error_map_night", '{}_error.png'.format("%05d" %i))
         cv2.imwrite(out_fn, error_img)
 
         # add

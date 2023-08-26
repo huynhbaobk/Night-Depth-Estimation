@@ -59,6 +59,7 @@ def main():
 
     # define model
     model = MODELS.build(name=cfg.model.name, option=cfg)
+    # model.load_state_dict(torch.load("")['state_dict'])
 
     # define trainer
     work_dir = osp.join(args.work_dir, args.config)
