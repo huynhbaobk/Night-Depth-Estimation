@@ -16,9 +16,9 @@ def copy_files(source_folder, destination_folder, file_names):
             print(f"File not found: {source_file_path}")
 
 if __name__ == "__main__":
-    file_list_path = "split_files/robotcar/2014-12-09-13-21-02/train_split.txt"
-    source_folder = "/media/aiteam/DataAI/depth_datasets/oxford_raw/2014-12-09-13-21-02/rgb"
-    destination_folder = "/media/aiteam/DataAI/depth_datasets/oxford_raw/2014-12-09-13-21-02/train_rnw"
+    file_list_path = "/media/aiteam/DataAI/depth_datasets/oxford_raw/2014-12-16-18-44-24/train_split_crop.txt"
+    source_folder = "/media/aiteam/DataAI/depth_datasets/oxford_raw/2014-12-16-18-44-24/rgb"
+    destination_folder = "/media/aiteam/DataAI/depth_datasets/oxford_raw/2014-12-16-18-44-24/rgb_crop"
 
     # Extracting file names from the text file
     file_names = extract_first_column(file_list_path)

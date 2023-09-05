@@ -6,7 +6,9 @@ from .disp_encoder import DispEncoder
 from .pose_decoder import PoseDecoder
 from .pose_encoder import PoseEncoder
 from .utils import transformation_from_parameters
-from .attention import PositionAttention
+from .attention import PositionAttention, MultiHeadAttention
+from .spm import SPM
+from .depth_decoder import DepthDecoder
 
 class DispNet(nn.Module):
     def __init__(self, opt):
@@ -49,19 +51,23 @@ class DispAttetionNet(nn.Module):
 
         # networks
         self.DepthEncoder = DispEncoder(self.opt.depth_num_layers, pre_trained=True)
-        self.DepthDecoder = DispDecoder(self.DepthEncoder.num_ch_enc)
+        self.DepthDecoder = DepthDecoder(self.DepthEncoder.num_ch_enc)
 
         self.PoseEncoder = PoseEncoder(self.opt.pose_num_layers, True, num_input_images=2)
         self.PoseDecoder = PoseDecoder(self.PoseEncoder.num_ch_enc)
 
-        self.PositionAttention = PositionAttention(self.DepthEncoder.num_ch_enc[-1])
+        # self.PositionAttention = PositionAttention(self.DepthEncoder.num_ch_enc[-1])
+        # self.MultiHeadAttention = MultiHeadAttention(self.DepthEncoder.num_ch_enc[-1], heads=4)
+        # self.spm = SPM(self.DepthEncoder.num_ch_enc[-1])
 
     def forward(self, inputs):
         features = self.DepthEncoder(inputs['color_aug', 0, 0])
-        features[-1], attention_map = self.PositionAttention(features[-1])
+        # features[-1], attention_map = self.PositionAttention(features[-1])
+        # features[-1], attention_map = self.MultiHeadAttention(features[-1])
+        # features[-1], attention_map = self.spm(features[-1])
         outputs = self.DepthDecoder(features)
 
-        outputs['attention_map'] = attention_map
+        # outputs['attention_map'] = attention_map
         if self.training:
             outputs.update(self.predict_poses(inputs))
         return outputs

@@ -2,7 +2,7 @@
 total_epochs: 20
 imgs_per_gpu: &b 3
 workers_per_gpu: 6
-checkpoint_epoch_interval: 2
+checkpoint_epoch_interval: 1
 
 data_link: None
 

@@ -10,7 +10,7 @@ _DS_ROOT = 'night'
 _CONFIG = 'steps_rc'
 
 # eval check points
-_EVAL_CHECK_POINTS = [17]
+_EVAL_CHECK_POINTS = [16]
 _VIS = 1
 
 if __name__ == '__main__':
@@ -23,8 +23,8 @@ if __name__ == '__main__':
         cmds = [
             'cd {}'.format(curr_dir),
             # 'python test_robotcar_disp.py {} {} {} --vis {}'.format(_DS_ROOT, _CONFIG, f'checkpoints/{_CONFIG}/rc_best.ckpt', _VIS),
-            # 'python test_robotcar_disp.py {} {} {} --vis {}'.format(_DS_ROOT, _CONFIG, f'checkpoints/{_CONFIG}/checkpoint_epoch={ck}.ckpt', _VIS),
-            'python test_robotcar_disp.py {} {} {} --vis {}'.format(_DS_ROOT, _CONFIG, f'checkpoints/{_CONFIG}/checkpoint_epoch=17_512x256_relight0.05_0.1_G2.5_globaldiscriminator_no_multiscaleloss_lr_reduce0.1_position_attention.ckpt', _VIS),
+            'python test_robotcar_disp.py {} {} {} --vis {}'.format(_DS_ROOT, _CONFIG, f'checkpoints/{_CONFIG}/checkpoint_epoch={ck}.ckpt', _VIS),
+            # 'python test_robotcar_disp.py {} {} {} --vis {}'.format(_DS_ROOT, _CONFIG, f'checkpoints/{_CONFIG}/checkpoint_epoch=19-v6.ckpt', _VIS),
             'cd evaluation',
             'python eval_robotcar.py {} --output_file_name={}'.format(_DS_ROOT, result_file_name),
         ]
