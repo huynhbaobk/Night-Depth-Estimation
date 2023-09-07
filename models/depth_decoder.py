@@ -9,6 +9,7 @@ from collections import OrderedDict
 # from layers import *
 from .dem import DEM
 from .spm import SPM
+from .da_att import DANetHead
 
 class ConvBlock(nn.Module):
     """Layer to perform a convolution followed by ELU
@@ -80,7 +81,8 @@ class DepthDecoder(nn.Module):
         for s in self.scales:
             self.convs[("dispconv", s)] = Conv3x3(self.num_ch_dec[s], self.num_output_channels)
         
-        self.spm = SPM(self.num_ch_enc[-1])
+        # self.spm = SPM(self.num_ch_enc[-1])
+        self.dahead = DANetHead(self.num_ch_enc[-1], self.num_ch_enc[-1])
         self.decoder = nn.ModuleList(list(self.convs.values()))
         self.sigmoid = nn.Sigmoid()
 
@@ -89,8 +91,11 @@ class DepthDecoder(nn.Module):
 
         # decoder
         x = input_features[-1]
-        x, attention_map = self.spm(x)
-        self.outputs['attention_map'] = attention_map
+        # x, attention_map = self.spm(x)
+        out = self.dahead(x)
+        self.outputs['features_sa'] = out[1]
+        self.outputs['features_sc'] = out[2]
+        x = out[0]
         
         for i in range(4, -1, -1):
             x = self.convs[("upconv", i, 0)](x)

@@ -10,8 +10,8 @@ _DS_ROOT = 'night'
 _CONFIG = 'steps_rc'
 
 # eval check points
-_EVAL_CHECK_POINTS = [16]
-_VIS = 1
+_EVAL_CHECK_POINTS = [13, 14, 15, 16, 17, 18, 19]
+_VIS = 0
 
 if __name__ == '__main__':
     assert len(_EVAL_CHECK_POINTS) > 0, 'Check points can not be empty.'

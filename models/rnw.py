@@ -237,7 +237,8 @@ class RNWModel(LightningModule):
             # print(outputs["attention_map"][0].shape)
             # print(outputs["attention_map"][0])
             # print(torch.argmax(outputs["attention_map"][0], dim=1))
-            logger.add_images(f"attention_map1", normalize_image(outputs["attention_map"].unsqueeze(1)), self.step)
+            # logger.add_images(f"attention_map_sa", normalize_image(outputs["attention_map_sa"]), self.step)
+            # logger.add_images(f"attention_map_sc", normalize_image(outputs["attention_map_sc"]), self.step)
 
             # logger.add_images(f"attention_map1", normalize_image(outputs["attention_map"][:,0,:,:].unsqueeze(1)), self.step)
             # logger.add_images(f"attention_map2", normalize_image(outputs["attention_map"][:,1,:,:].unsqueeze(1)), self.step)
@@ -492,7 +493,8 @@ class RNWModel(LightningModule):
 
     
     def get_color_input(self, inputs, frame_id, scale):
-        return inputs[("color_aug", frame_id, scale)] if self.opt.use_equ else inputs[("color", frame_id, scale)]
+        # return inputs[("color_aug", frame_id, scale)] if self.opt.use_equ else inputs[("color", frame_id, scale)]
+        return inputs[("color_aug", frame_id, scale)]
 
     def generate_images_pred(self, inputs, outputs, scale):
         disp = outputs[("disp", 0, scale)]
