@@ -65,6 +65,7 @@ class RNWModel(LightningModule):
         # networks
         self.S = Network(stage=3)
         self.G = DispAttetionNet(self.opt)
+        # self.G =  DispNet(self.opt)
         in_chs_D = 3 if self.opt.use_position_map else 1
         self.D = NLayerDiscriminator(in_chs_D, n_layers=4)
         # self.D = GlobalDiscriminator(in_chs_D)

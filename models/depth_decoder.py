@@ -91,6 +91,7 @@ class DepthDecoder(nn.Module):
 
         # decoder
         x = input_features[-1]
+        self.outputs['features_enc'] = x
         # x, attention_map = self.spm(x)
         out = self.dahead(x)
         self.outputs['features_sa'] = out[1]
