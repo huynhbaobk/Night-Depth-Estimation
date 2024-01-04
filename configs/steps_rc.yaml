@@ -1,7 +1,7 @@
 
 total_epochs: 20
-imgs_per_gpu: &b 3
-workers_per_gpu: 6
+imgs_per_gpu: &b 6
+workers_per_gpu: 16
 checkpoint_epoch_interval: 1
 
 data_link: None
@@ -9,12 +9,12 @@ data_link: None
 dataset:
   type: "multiple_robotcar"
   frame_ids: &f [ 0, -1, 1 ]
-  # width: &w 576
-  # height: &h 320
+  width: &w 576
+  height: &h 320
   # width: &w 288
   # height: &h 160
-  width: &w 512
-  height: &h 256
+  # width: &w 512
+  # height: &h 256
 
   multiple_robotcar:
     subsets:
@@ -24,7 +24,7 @@ dataset:
         root_dir: "night"
     master: "night"
     down_scale: True
-    num_out_scales: 1
+    num_out_scales: 4
     equ_limit: 0.009
     gen_equ: True
     shuffle: True
@@ -45,7 +45,7 @@ model:
   imgs_per_gpu: *b
   height: *h
   width: *w
-  scales: [0]
+  scales: [0, 1, 2, 3]
   min_depth: 0.1
   max_depth: 100.0
 

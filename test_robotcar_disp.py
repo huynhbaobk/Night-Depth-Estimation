@@ -56,9 +56,9 @@ if __name__ == '__main__':
     # read list file
     root_dir = ROBOTCAR_ROOT[args.root_dir] if args.root_dir in ROBOTCAR_ROOT else args.root_dir
     #RNW
-    # test_items = read_list_from_file(os.path.join(root_dir, 'test_split.txt'), 1)
+    test_items = read_list_from_file(os.path.join(root_dir, 'test_split.txt'), 1)
     #ADDS
-    test_items = read_list_from_file(os.path.join(root_dir, 'test_split_adds.txt'), 1)
+    # test_items = read_list_from_file(os.path.join(root_dir, 'test_split_adds.txt'), 1)
 
     test_items = sorted(test_items)
     # store results

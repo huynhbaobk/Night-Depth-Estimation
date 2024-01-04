@@ -3,8 +3,8 @@
 #
 # root dir
 ROBOTCAR_ROOT = {
-    'day': '/media/aiteam/DataAI/depth_datasets/oxford_raw/2014-12-09-13-21-02',
-    'night': '/media/aiteam/DataAI/depth_datasets/oxford_raw/2014-12-16-18-44-24'
+    'day': '/workspace/2014-12-09-13-21-02',
+    'night': '/workspace/2014-12-16-18-44-24'
 }
 NUSCENES_ROOT = {
     'sequence': '../data/nuScenes-Night/sequences/',

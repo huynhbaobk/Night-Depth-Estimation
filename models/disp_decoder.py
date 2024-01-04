@@ -64,21 +64,21 @@ class DispDecoder(nn.Module):
         x3 = torch.cat([x3, s3], dim=1)
         x3 = self.leaky_relu(x3)
         x3 = self.up_conv3(x3)
-        # disp3 = torch.sigmoid(self.disp_conv3(x3))
+        disp3 = torch.sigmoid(self.disp_conv3(x3))
         # 2
         s2 = self.reduce2(f2)
         x2 = self.conv2(x3)
         x2 = torch.cat([x2, s2], dim=1)
         x2 = self.leaky_relu(x2)
         x2 = self.up_conv2(x2)
-        # disp2 = torch.sigmoid(self.disp_conv2(x2))
+        disp2 = torch.sigmoid(self.disp_conv2(x2))
         # 1
         s1 = self.reduce1(f1)
         x1 = self.conv1(x2)
         x1 = torch.cat([x1, s1], dim=1)
         x1 = self.leaky_relu(x1)
         x1 = self.up_conv1(x1)
-        # disp1 = torch.sigmoid(self.disp_conv1(x1))
+        disp1 = torch.sigmoid(self.disp_conv1(x1))
         # 0
         s0 = self.reduce0(f0)
         x0 = self.conv0(x1)
@@ -89,9 +89,9 @@ class DispDecoder(nn.Module):
         # pack and return
         outputs = {
             ('disp', frame_idx, 0): disp0,
-            #('disp', frame_idx, 1): disp1,
-            #('disp', frame_idx, 2): disp2,
-            #('disp', frame_idx, 3): disp3,
+            ('disp', frame_idx, 1): disp1,
+            ('disp', frame_idx, 2): disp2,
+            ('disp', frame_idx, 3): disp3,
             #('disp', frame_idx, 4): disp4
         }
         return outputs
